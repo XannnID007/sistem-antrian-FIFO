@@ -8,6 +8,7 @@ use App\Models\Santri;
 use App\Models\BarangTitipan;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Auth;
 
 class KunjunganController extends Controller
 {
@@ -67,42 +68,54 @@ class KunjunganController extends Controller
             'barang_titipan.*.deskripsi' => 'nullable|string',
         ]);
 
-        DB::transaction(function () use ($request) {
-            // Create kunjungan
-            $kunjungan = Kunjungan::create([
-                'nomor_antrian' => Kunjungan::generateNomorAntrian(),
-                'santri_id' => $request->santri_id,
-                'nama_pengunjung' => $request->nama_pengunjung,
-                'hubungan' => $request->hubungan,
-                'phone_pengunjung' => $request->phone_pengunjung,
-                'alamat_pengunjung' => $request->alamat_pengunjung,
-                'status' => 'menunggu',
-                'waktu_daftar' => now(),
-                'catatan' => $request->catatan,
-                'admin_id' => auth()->id(),
-            ]);
+        try {
+            DB::transaction(function () use ($request, &$kunjungan) {
+                // Create kunjungan
+                $kunjungan = Kunjungan::create([
+                    'nomor_antrian' => Kunjungan::generateNomorAntrian(),
+                    'santri_id' => $request->santri_id,
+                    'nama_pengunjung' => $request->nama_pengunjung,
+                    'hubungan' => $request->hubungan,
+                    'phone_pengunjung' => $request->phone_pengunjung,
+                    'alamat_pengunjung' => $request->alamat_pengunjung,
+                    'status' => 'menunggu',
+                    'waktu_daftar' => now(),
+                    'catatan' => $request->catatan,
+                    'admin_id' => Auth::id(),
+                ]);
 
-            // Create barang titipan if any
-            if ($request->filled('barang_titipan')) {
-                foreach ($request->barang_titipan as $barang) {
-                    if (!empty($barang['nama_barang'])) {
-                        BarangTitipan::create([
-                            'kode_barang' => BarangTitipan::generateKodeBarang(),
-                            'kunjungan_id' => $kunjungan->id,
-                            'nama_barang' => $barang['nama_barang'],
-                            'deskripsi' => $barang['deskripsi'] ?? null,
-                            'jumlah' => $barang['jumlah'],
-                            'status' => 'dititipkan',
-                            'waktu_dititipkan' => now(),
-                            'admin_penerima' => auth()->id(),
-                        ]);
+                // Create barang titipan if any
+                if ($request->filled('barang_titipan')) {
+                    foreach ($request->barang_titipan as $barang) {
+                        if (!empty($barang['nama_barang'])) {
+                            BarangTitipan::create([
+                                'kode_barang' => BarangTitipan::generateKodeBarang(),
+                                'kunjungan_id' => $kunjungan->id,
+                                'nama_barang' => $barang['nama_barang'],
+                                'deskripsi' => $barang['deskripsi'] ?? null,
+                                'jumlah' => $barang['jumlah'],
+                                'status' => 'dititipkan',
+                                'waktu_dititipkan' => now(),
+                                'admin_penerima' => Auth::id(),
+                            ]);
+                        }
                     }
                 }
-            }
-        });
 
-        return redirect()->route('kunjungan.antrian')
-            ->with('success', 'Kunjungan berhasil didaftarkan dengan nomor antrian: ' . $kunjungan->nomor_antrian);
+                // Log activity
+                activity()
+                    ->causedBy(Auth::user())
+                    ->performedOn($kunjungan)
+                    ->log('Created new kunjungan: ' . $kunjungan->nomor_antrian);
+            });
+
+            return redirect()->route('kunjungan.antrian')
+                ->with('success', 'Kunjungan berhasil didaftarkan dengan nomor antrian: ' . $kunjungan->nomor_antrian);
+        } catch (\Exception $e) {
+            return back()
+                ->withInput()
+                ->with('error', 'Terjadi kesalahan saat mendaftarkan kunjungan: ' . $e->getMessage());
+        }
     }
 
     public function antrian()
@@ -136,6 +149,11 @@ class KunjunganController extends Controller
             'waktu_panggil' => now(),
         ]);
 
+        activity()
+            ->causedBy(Auth::user())
+            ->performedOn($kunjungan)
+            ->log('Called kunjungan: ' . $kunjungan->nomor_antrian);
+
         return response()->json([
             'success' => true,
             'message' => "Nomor antrian {$kunjungan->nomor_antrian} telah dipanggil"
@@ -152,6 +170,11 @@ class KunjunganController extends Controller
             'status' => 'berlangsung',
             'waktu_mulai' => now(),
         ]);
+
+        activity()
+            ->causedBy(Auth::user())
+            ->performedOn($kunjungan)
+            ->log('Started kunjungan: ' . $kunjungan->nomor_antrian);
 
         return response()->json([
             'success' => true,
@@ -170,6 +193,11 @@ class KunjunganController extends Controller
             'waktu_selesai' => now(),
         ]);
 
+        activity()
+            ->causedBy(Auth::user())
+            ->performedOn($kunjungan)
+            ->log('Finished kunjungan: ' . $kunjungan->nomor_antrian);
+
         return response()->json([
             'success' => true,
             'message' => "Kunjungan {$kunjungan->nomor_antrian} telah selesai"
@@ -183,6 +211,11 @@ class KunjunganController extends Controller
         }
 
         $kunjungan->update(['status' => 'dibatalkan']);
+
+        activity()
+            ->causedBy(Auth::user())
+            ->performedOn($kunjungan)
+            ->log('Cancelled kunjungan: ' . $kunjungan->nomor_antrian);
 
         return response()->json([
             'success' => true,
@@ -200,5 +233,26 @@ class KunjunganController extends Controller
     {
         $kunjungan->load(['santri', 'barangTitipan']);
         return view('kunjungan.struk', compact('kunjungan'));
+    }
+
+    public function getQueueStatus()
+    {
+        $queue = Kunjungan::with(['santri'])
+            ->whereIn('status', ['menunggu', 'dipanggil', 'berlangsung'])
+            ->fifoOrder()
+            ->get()
+            ->map(function ($kunjungan) {
+                return [
+                    'id' => $kunjungan->id,
+                    'nomor_antrian' => $kunjungan->nomor_antrian,
+                    'nama_pengunjung' => $kunjungan->nama_pengunjung,
+                    'nama_santri' => $kunjungan->santri->nama,
+                    'status' => $kunjungan->status,
+                    'waktu_daftar' => $kunjungan->waktu_daftar->format('H:i'),
+                    'waktu_tunggu' => $kunjungan->waktu_daftar->diffInMinutes(now()) . ' menit',
+                ];
+            });
+
+        return response()->json($queue);
     }
 }
