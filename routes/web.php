@@ -1,5 +1,6 @@
 <?php
-// routes/web.php
+// routes/web.php - FIXED VERSION
+
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\DashboardController;
@@ -18,8 +19,11 @@ use App\Http\Controllers\PublicDisplayController;
 |--------------------------------------------------------------------------
 */
 
-// Public Routes
+// Redirect root to login
 Route::get('/', function () {
+    if (auth()->check()) {
+        return redirect()->route('dashboard');
+    }
     return redirect()->route('login');
 });
 
@@ -33,12 +37,12 @@ Route::middleware('guest')->group(function () {
     Route::post('/login', [AuthController::class, 'login']);
 });
 
-Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
+Route::post('/logout', [AuthController::class, 'logout'])->name('logout')->middleware('auth');
 
-// Protected Routes
+// Protected Routes - SEMUA HARUS LOGIN
 Route::middleware(['auth'])->group(function () {
 
-    // Dashboard
+    // Dashboard - DEFAULT REDIRECT AFTER LOGIN
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
     Route::get('/dashboard/queue-status', [DashboardController::class, 'getQueueStatus'])->name('dashboard.queue-status');
 
@@ -88,51 +92,25 @@ Route::middleware(['auth'])->group(function () {
     Route::put('/profile', [UserController::class, 'updateProfile'])->name('profile.update');
     Route::put('/profile/password', [UserController::class, 'updatePassword'])->name('profile.password');
 
-    // Routes khusus untuk Pengasuh
+    // Routes khusus untuk Pengasuh - DENGAN MIDDLEWARE ROLE
     Route::middleware(['role:pengasuh'])->group(function () {
 
         // Santri Management
-        Route::prefix('santri')->name('santri.')->group(function () {
-            Route::get('/', [SantriController::class, 'index'])->name('index');
-            Route::get('/create', [SantriController::class, 'create'])->name('create');
-            Route::post('/', [SantriController::class, 'store'])->name('store');
-            Route::get('/{santri}', [SantriController::class, 'show'])->name('show');
-            Route::get('/{santri}/edit', [SantriController::class, 'edit'])->name('edit');
-            Route::put('/{santri}', [SantriController::class, 'update'])->name('update');
-            Route::delete('/{santri}', [SantriController::class, 'destroy'])->name('destroy');
-            Route::post('/{santri}/toggle-status', [SantriController::class, 'toggleStatus'])->name('toggle-status');
-            Route::get('/export/excel', [SantriController::class, 'exportExcel'])->name('export.excel');
-        });
+        Route::resource('santri', SantriController::class);
+        Route::post('/santri/{santri}/toggle-status', [SantriController::class, 'toggleStatus'])->name('santri.toggle-status');
+        Route::get('/santri/export/excel', [SantriController::class, 'exportExcel'])->name('santri.export.excel');
 
         // User Management
-        Route::prefix('users')->name('users.')->group(function () {
-            Route::get('/', [UserController::class, 'index'])->name('index');
-            Route::get('/create', [UserController::class, 'create'])->name('create');
-            Route::post('/', [UserController::class, 'store'])->name('store');
-            Route::get('/{user}', [UserController::class, 'show'])->name('show');
-            Route::get('/{user}/edit', [UserController::class, 'edit'])->name('edit');
-            Route::put('/{user}', [UserController::class, 'update'])->name('update');
-            Route::delete('/{user}', [UserController::class, 'destroy'])->name('destroy');
-            Route::post('/{user}/toggle-status', [UserController::class, 'toggleStatus'])->name('toggle-status');
-            Route::post('/{user}/reset-password', [UserController::class, 'resetPassword'])->name('reset-password');
-        });
+        Route::resource('users', UserController::class);
+        Route::post('/users/{user}/toggle-status', [UserController::class, 'toggleStatus'])->name('users.toggle-status');
+        Route::post('/users/{user}/reset-password', [UserController::class, 'resetPassword'])->name('users.reset-password');
 
         // Jam Operasional
-        Route::prefix('jam-operasional')->name('jam-operasional.')->group(function () {
-            Route::get('/', [JamOperasionalController::class, 'index'])->name('index');
-            Route::post('/', [JamOperasionalController::class, 'store'])->name('store');
-            Route::put('/{jamOperasional}', [JamOperasionalController::class, 'update'])->name('update');
-            Route::delete('/{jamOperasional}', [JamOperasionalController::class, 'destroy'])->name('destroy');
-            Route::post('/{jamOperasional}/toggle-status', [JamOperasionalController::class, 'toggleStatus'])->name('toggle-status');
-        });
+        Route::resource('jam-operasional', JamOperasionalController::class, ['except' => ['create', 'show', 'edit']]);
+        Route::post('/jam-operasional/{jamOperasional}/toggle-status', [JamOperasionalController::class, 'toggleStatus'])->name('jam-operasional.toggle-status');
 
         // Pengaturan System
-        Route::prefix('pengaturan')->name('pengaturan.')->group(function () {
-            Route::get('/', [PengaturanController::class, 'index'])->name('index');
-            Route::post('/', [PengaturanController::class, 'store'])->name('store');
-            Route::put('/{pengaturan}', [PengaturanController::class, 'update'])->name('update');
-            Route::delete('/{pengaturan}', [PengaturanController::class, 'destroy'])->name('destroy');
-        });
+        Route::resource('pengaturan', PengaturanController::class, ['except' => ['create', 'show', 'edit']]);
 
         // Advanced Reports (Pengasuh only)
         Route::prefix('laporan-lanjutan')->name('laporan.advanced.')->group(function () {
@@ -143,3 +121,16 @@ Route::middleware(['auth'])->group(function () {
         });
     });
 });
+
+// API Routes untuk AJAX calls
+Route::prefix('api')->middleware(['auth'])->group(function () {
+    Route::get('/santri/search', [SantriController::class, 'search'])->name('api.santri.search');
+    Route::get('/kunjungan/queue-status', [KunjunganController::class, 'getQueueStatus'])->name('api.kunjungan.queue-status');
+    Route::get('/barang-titipan/search', [BarangTitipanController::class, 'search'])->name('api.barang-titipan.search');
+    Route::get('/dashboard/stats', [DashboardController::class, 'getStats'])->name('api.dashboard.stats');
+});
+
+// HOME ROUTE - PENTING!
+Route::get('/home', function () {
+    return redirect()->route('dashboard');
+})->middleware('auth')->name('home');
