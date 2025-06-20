@@ -1,5 +1,5 @@
 <?php
-// routes/web.php - FIXED VERSION
+// routes/web.php - UPDATED VERSION
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
@@ -46,51 +46,55 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
     Route::get('/dashboard/queue-status', [DashboardController::class, 'getQueueStatus'])->name('dashboard.queue-status');
 
-    // Kunjungan Routes
-    Route::prefix('kunjungan')->name('kunjungan.')->group(function () {
-        Route::get('/', [KunjunganController::class, 'index'])->name('index');
-        Route::get('/create', [KunjunganController::class, 'create'])->name('create');
-        Route::post('/', [KunjunganController::class, 'store'])->name('store');
-        Route::get('/antrian', [KunjunganController::class, 'antrian'])->name('antrian');
-        Route::get('/{kunjungan}', [KunjunganController::class, 'show'])->name('show');
-        Route::get('/{kunjungan}/struk', [KunjunganController::class, 'cetakStruk'])->name('struk');
-
-        // Antrian Actions
-        Route::post('/{kunjungan}/panggil', [KunjunganController::class, 'panggil'])->name('panggil');
-        Route::post('/{kunjungan}/mulai', [KunjunganController::class, 'mulai'])->name('mulai');
-        Route::post('/{kunjungan}/selesai', [KunjunganController::class, 'selesai'])->name('selesai');
-        Route::post('/{kunjungan}/batal', [KunjunganController::class, 'batal'])->name('batal');
-    });
-
-    // Barang Titipan Routes
-    Route::prefix('barang-titipan')->name('barang-titipan.')->group(function () {
-        Route::get('/', [BarangTitipanController::class, 'index'])->name('index');
-        Route::get('/create', [BarangTitipanController::class, 'create'])->name('create');
-        Route::post('/', [BarangTitipanController::class, 'store'])->name('store');
-        Route::get('/{barangTitipan}', [BarangTitipanController::class, 'show'])->name('show');
-        Route::get('/{barangTitipan}/edit', [BarangTitipanController::class, 'edit'])->name('edit');
-        Route::put('/{barangTitipan}', [BarangTitipanController::class, 'update'])->name('update');
-        Route::delete('/{barangTitipan}', [BarangTitipanController::class, 'destroy'])->name('destroy');
-        Route::get('/{barangTitipan}/struk', [BarangTitipanController::class, 'cetakStruk'])->name('struk');
-
-        // Status Actions
-        Route::post('/{barangTitipan}/serahkan', [BarangTitipanController::class, 'serahkan'])->name('serahkan');
-        Route::post('/{barangTitipan}/ambil', [BarangTitipanController::class, 'ambil'])->name('ambil');
-    });
-
-    // Laporan Routes
-    Route::prefix('laporan')->name('laporan.')->group(function () {
-        Route::get('/', [LaporanController::class, 'index'])->name('index');
-        Route::get('/kunjungan', [LaporanController::class, 'kunjungan'])->name('kunjungan');
-        Route::get('/barang-titipan', [LaporanController::class, 'barangTitipan'])->name('barang-titipan');
-        Route::get('/statistik', [LaporanController::class, 'statistik'])->name('statistik');
-        Route::post('/export', [LaporanController::class, 'export'])->name('export');
-    });
-
-    // Profile Routes
+    // Profile Routes - Available for all authenticated users
     Route::get('/profile', [UserController::class, 'profile'])->name('profile.edit');
     Route::put('/profile', [UserController::class, 'updateProfile'])->name('profile.update');
     Route::put('/profile/password', [UserController::class, 'updatePassword'])->name('profile.password');
+
+    // Routes khusus untuk Admin - DENGAN MIDDLEWARE ROLE
+    Route::middleware(['role:admin'])->group(function () {
+
+        // Kunjungan Routes
+        Route::prefix('kunjungan')->name('kunjungan.')->group(function () {
+            Route::get('/', [KunjunganController::class, 'index'])->name('index');
+            Route::get('/create', [KunjunganController::class, 'create'])->name('create');
+            Route::post('/', [KunjunganController::class, 'store'])->name('store');
+            Route::get('/antrian', [KunjunganController::class, 'antrian'])->name('antrian');
+            Route::get('/{kunjungan}', [KunjunganController::class, 'show'])->name('show');
+            Route::get('/{kunjungan}/struk', [KunjunganController::class, 'cetakStruk'])->name('struk');
+
+            // Antrian Actions
+            Route::post('/{kunjungan}/panggil', [KunjunganController::class, 'panggil'])->name('panggil');
+            Route::post('/{kunjungan}/mulai', [KunjunganController::class, 'mulai'])->name('mulai');
+            Route::post('/{kunjungan}/selesai', [KunjunganController::class, 'selesai'])->name('selesai');
+            Route::post('/{kunjungan}/batal', [KunjunganController::class, 'batal'])->name('batal');
+        });
+
+        // Barang Titipan Routes
+        Route::prefix('barang-titipan')->name('barang-titipan.')->group(function () {
+            Route::get('/', [BarangTitipanController::class, 'index'])->name('index');
+            Route::get('/create', [BarangTitipanController::class, 'create'])->name('create');
+            Route::post('/', [BarangTitipanController::class, 'store'])->name('store');
+            Route::get('/{barangTitipan}', [BarangTitipanController::class, 'show'])->name('show');
+            Route::get('/{barangTitipan}/edit', [BarangTitipanController::class, 'edit'])->name('edit');
+            Route::put('/{barangTitipan}', [BarangTitipanController::class, 'update'])->name('update');
+            Route::delete('/{barangTitipan}', [BarangTitipanController::class, 'destroy'])->name('destroy');
+            Route::get('/{barangTitipan}/struk', [BarangTitipanController::class, 'cetakStruk'])->name('struk');
+
+            // Status Actions
+            Route::post('/{barangTitipan}/serahkan', [BarangTitipanController::class, 'serahkan'])->name('serahkan');
+            Route::post('/{barangTitipan}/ambil', [BarangTitipanController::class, 'ambil'])->name('ambil');
+        });
+
+        // Laporan Routes
+        Route::prefix('laporan')->name('laporan.')->group(function () {
+            Route::get('/', [LaporanController::class, 'index'])->name('index');
+            Route::get('/kunjungan', [LaporanController::class, 'kunjungan'])->name('kunjungan');
+            Route::get('/barang-titipan', [LaporanController::class, 'barangTitipan'])->name('barang-titipan');
+            Route::get('/statistik', [LaporanController::class, 'statistik'])->name('statistik');
+            Route::post('/export', [LaporanController::class, 'export'])->name('export');
+        });
+    });
 
     // Routes khusus untuk Pengasuh - DENGAN MIDDLEWARE ROLE
     Route::middleware(['role:pengasuh'])->group(function () {
@@ -125,8 +129,13 @@ Route::middleware(['auth'])->group(function () {
 // API Routes untuk AJAX calls
 Route::prefix('api')->middleware(['auth'])->group(function () {
     Route::get('/santri/search', [SantriController::class, 'search'])->name('api.santri.search');
-    Route::get('/kunjungan/queue-status', [KunjunganController::class, 'getQueueStatus'])->name('api.kunjungan.queue-status');
-    Route::get('/barang-titipan/search', [BarangTitipanController::class, 'search'])->name('api.barang-titipan.search');
+
+    // API untuk admin saja
+    Route::middleware(['role:admin'])->group(function () {
+        Route::get('/kunjungan/queue-status', [KunjunganController::class, 'getQueueStatus'])->name('api.kunjungan.queue-status');
+        Route::get('/barang-titipan/search', [BarangTitipanController::class, 'search'])->name('api.barang-titipan.search');
+    });
+
     Route::get('/dashboard/stats', [DashboardController::class, 'getStats'])->name('api.dashboard.stats');
 });
 

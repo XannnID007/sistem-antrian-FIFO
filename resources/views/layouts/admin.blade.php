@@ -91,42 +91,52 @@
                     <span>Dashboard</span>
                 </a>
 
-                <!-- Kunjungan Menu -->
-                <div class="menu-group">
-                    <button onclick="toggleSubmenu('kunjungan')"
-                        class="w-full flex items-center justify-between p-3 rounded-lg hover:bg-gray-100 transition-colors text-gray-700">
-                        <div class="flex items-center space-x-3">
-                            <i class="fas fa-users w-5"></i>
-                            <span>Kunjungan</span>
+                @if (auth()->user()->isAdmin())
+                    <!-- Kunjungan Menu (Admin Only) -->
+                    <div class="menu-group">
+                        <button onclick="toggleSubmenu('kunjungan')"
+                            class="w-full flex items-center justify-between p-3 rounded-lg hover:bg-gray-100 transition-colors text-gray-700">
+                            <div class="flex items-center space-x-3">
+                                <i class="fas fa-users w-5"></i>
+                                <span>Kunjungan</span>
+                            </div>
+                            <i class="fas fa-chevron-down transition-transform" id="kunjungan-icon"></i>
+                        </button>
+                        <div id="kunjungan-submenu" class="submenu ml-8 mt-2 space-y-1">
+                            <a href="{{ route('kunjungan.create') }}"
+                                class="block p-2 rounded text-sm hover:bg-gray-100 transition-colors
+                                      {{ request()->routeIs('kunjungan.create') ? 'bg-blue-50 text-blue-600' : 'text-gray-600' }}">
+                                <i class="fas fa-plus w-4 mr-2"></i>Daftar Kunjungan
+                            </a>
+                            <a href="{{ route('kunjungan.antrian') }}"
+                                class="block p-2 rounded text-sm hover:bg-gray-100 transition-colors
+                                      {{ request()->routeIs('kunjungan.antrian') ? 'bg-blue-50 text-blue-600' : 'text-gray-600' }}">
+                                <i class="fas fa-list w-4 mr-2"></i>Kelola Antrian
+                            </a>
+                            <a href="{{ route('kunjungan.index') }}"
+                                class="block p-2 rounded text-sm hover:bg-gray-100 transition-colors
+                                      {{ request()->routeIs('kunjungan.index') ? 'bg-blue-50 text-blue-600' : 'text-gray-600' }}">
+                                <i class="fas fa-history w-4 mr-2"></i>Riwayat Kunjungan
+                            </a>
                         </div>
-                        <i class="fas fa-chevron-down transition-transform" id="kunjungan-icon"></i>
-                    </button>
-                    <div id="kunjungan-submenu" class="submenu ml-8 mt-2 space-y-1">
-                        <a href="{{ route('kunjungan.create') }}"
-                            class="block p-2 rounded text-sm hover:bg-gray-100 transition-colors
-                                  {{ request()->routeIs('kunjungan.create') ? 'bg-blue-50 text-blue-600' : 'text-gray-600' }}">
-                            <i class="fas fa-plus w-4 mr-2"></i>Daftar Kunjungan
-                        </a>
-                        <a href="{{ route('kunjungan.antrian') }}"
-                            class="block p-2 rounded text-sm hover:bg-gray-100 transition-colors
-                                  {{ request()->routeIs('kunjungan.antrian') ? 'bg-blue-50 text-blue-600' : 'text-gray-600' }}">
-                            <i class="fas fa-list w-4 mr-2"></i>Kelola Antrian
-                        </a>
-                        <a href="{{ route('kunjungan.index') }}"
-                            class="block p-2 rounded text-sm hover:bg-gray-100 transition-colors
-                                  {{ request()->routeIs('kunjungan.index') ? 'bg-blue-50 text-blue-600' : 'text-gray-600' }}">
-                            <i class="fas fa-history w-4 mr-2"></i>Riwayat Kunjungan
-                        </a>
                     </div>
-                </div>
 
-                <!-- Barang Titipan -->
-                <a href="{{ route('barang-titipan.index') }}"
-                    class="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-100 transition-colors 
-                          {{ request()->routeIs('barang-titipan.*') ? 'active-menu' : 'text-gray-700' }}">
-                    <i class="fas fa-box w-5"></i>
-                    <span>Barang Titipan</span>
-                </a>
+                    <!-- Barang Titipan (Admin Only) -->
+                    <a href="{{ route('barang-titipan.index') }}"
+                        class="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-100 transition-colors 
+                              {{ request()->routeIs('barang-titipan.*') ? 'active-menu' : 'text-gray-700' }}">
+                        <i class="fas fa-box w-5"></i>
+                        <span>Barang Titipan</span>
+                    </a>
+
+                    <!-- Laporan (Admin Only) -->
+                    <a href="{{ route('laporan.index') }}"
+                        class="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-100 transition-colors 
+                              {{ request()->routeIs('laporan.*') ? 'active-menu' : 'text-gray-700' }}">
+                        <i class="fas fa-chart-bar w-5"></i>
+                        <span>Laporan</span>
+                    </a>
+                @endif
 
                 @if (auth()->user()->isPengasuh())
                     <!-- Data Master (Only for Pengasuh) -->
@@ -142,12 +152,12 @@
                         <div id="master-submenu" class="submenu ml-8 mt-2 space-y-1">
                             <a href="{{ route('santri.index') }}"
                                 class="block p-2 rounded text-sm hover:bg-gray-100 transition-colors
-                                  {{ request()->routeIs('santri.*') ? 'bg-blue-50 text-blue-600' : 'text-gray-600' }}">
+                                      {{ request()->routeIs('santri.*') ? 'bg-blue-50 text-blue-600' : 'text-gray-600' }}">
                                 <i class="fas fa-graduation-cap w-4 mr-2"></i>Data Santri
                             </a>
                             <a href="{{ route('users.index') }}"
                                 class="block p-2 rounded text-sm hover:bg-gray-100 transition-colors
-                                  {{ request()->routeIs('users.*') ? 'bg-blue-50 text-blue-600' : 'text-gray-600' }}">
+                                      {{ request()->routeIs('users.*') ? 'bg-blue-50 text-blue-600' : 'text-gray-600' }}">
                                 <i class="fas fa-user-cog w-4 mr-2"></i>Kelola User
                             </a>
                         </div>
@@ -166,16 +176,24 @@
                         <div id="pengaturan-submenu" class="submenu ml-8 mt-2 space-y-1">
                             <a href="{{ route('jam-operasional.index') }}"
                                 class="block p-2 rounded text-sm hover:bg-gray-100 transition-colors
-                                  {{ request()->routeIs('jam-operasional.*') ? 'bg-blue-50 text-blue-600' : 'text-gray-600' }}">
+                                      {{ request()->routeIs('jam-operasional.*') ? 'bg-blue-50 text-blue-600' : 'text-gray-600' }}">
                                 <i class="fas fa-clock w-4 mr-2"></i>Jam Operasional
                             </a>
                             <a href="{{ route('pengaturan.index') }}"
                                 class="block p-2 rounded text-sm hover:bg-gray-100 transition-colors
-                                  {{ request()->routeIs('pengaturan.*') ? 'bg-blue-50 text-blue-600' : 'text-gray-600' }}">
+                                      {{ request()->routeIs('pengaturan.*') ? 'bg-blue-50 text-blue-600' : 'text-gray-600' }}">
                                 <i class="fas fa-sliders-h w-4 mr-2"></i>Pengaturan Umum
                             </a>
                         </div>
                     </div>
+
+                    <!-- Laporan Lanjutan (Only for Pengasuh) -->
+                    <a href="{{ route('laporan.advanced.index') }}"
+                        class="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-100 transition-colors 
+                              {{ request()->routeIs('laporan.advanced.*') ? 'active-menu' : 'text-gray-700' }}">
+                        <i class="fas fa-chart-line w-5"></i>
+                        <span>Laporan Lanjutan</span>
+                    </a>
                 @endif
 
                 <!-- Laporan -->
