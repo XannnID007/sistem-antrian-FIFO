@@ -1,5 +1,5 @@
 <?php
-// routes/web.php - UPDATED VERSION
+// routes/web.php - UPDATED VERSION dengan Hak Akses yang Benar
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
@@ -42,7 +42,7 @@ Route::post('/logout', [AuthController::class, 'logout'])->name('logout')->middl
 // Protected Routes - SEMUA HARUS LOGIN
 Route::middleware(['auth'])->group(function () {
 
-    // Dashboard - DEFAULT REDIRECT AFTER LOGIN
+    // Dashboard - Available for all authenticated users
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
     Route::get('/dashboard/queue-status', [DashboardController::class, 'getQueueStatus'])->name('dashboard.queue-status');
 
@@ -51,7 +51,7 @@ Route::middleware(['auth'])->group(function () {
     Route::put('/profile', [UserController::class, 'updateProfile'])->name('profile.update');
     Route::put('/profile/password', [UserController::class, 'updatePassword'])->name('profile.password');
 
-    // Routes khusus untuk Admin - DENGAN MIDDLEWARE ROLE
+    // Routes khusus untuk Admin - MENGELOLA KUNJUNGAN, BARANG TITIPAN, DAN LAPORAN
     Route::middleware(['role:admin'])->group(function () {
 
         // Kunjungan Routes
@@ -86,7 +86,7 @@ Route::middleware(['auth'])->group(function () {
             Route::post('/{barangTitipan}/ambil', [BarangTitipanController::class, 'ambil'])->name('ambil');
         });
 
-        // Laporan Routes
+        // Laporan Routes untuk Admin
         Route::prefix('laporan')->name('laporan.')->group(function () {
             Route::get('/', [LaporanController::class, 'index'])->name('index');
             Route::get('/kunjungan', [LaporanController::class, 'kunjungan'])->name('kunjungan');
@@ -96,27 +96,27 @@ Route::middleware(['auth'])->group(function () {
         });
     });
 
-    // Routes khusus untuk Pengasuh - DENGAN MIDDLEWARE ROLE
+    // Routes khusus untuk Pengasuh - DATA MASTER, PENGATURAN DAN LAPORAN LANJUTAN
     Route::middleware(['role:pengasuh'])->group(function () {
 
-        // Santri Management
+        // Data Master - Santri Management
         Route::resource('santri', SantriController::class);
         Route::post('/santri/{santri}/toggle-status', [SantriController::class, 'toggleStatus'])->name('santri.toggle-status');
         Route::get('/santri/export/excel', [SantriController::class, 'exportExcel'])->name('santri.export.excel');
 
-        // User Management
+        // Data Master - User Management
         Route::resource('users', UserController::class);
         Route::post('/users/{user}/toggle-status', [UserController::class, 'toggleStatus'])->name('users.toggle-status');
         Route::post('/users/{user}/reset-password', [UserController::class, 'resetPassword'])->name('users.reset-password');
 
-        // Jam Operasional
+        // Pengaturan - Jam Operasional
         Route::resource('jam-operasional', JamOperasionalController::class, ['except' => ['create', 'show', 'edit']]);
         Route::post('/jam-operasional/{jamOperasional}/toggle-status', [JamOperasionalController::class, 'toggleStatus'])->name('jam-operasional.toggle-status');
 
-        // Pengaturan System
+        // Pengaturan - System Settings
         Route::resource('pengaturan', PengaturanController::class, ['except' => ['create', 'show', 'edit']]);
 
-        // Advanced Reports (Pengasuh only)
+        // Laporan Lanjutan (Pengasuh only)
         Route::prefix('laporan-lanjutan')->name('laporan.advanced.')->group(function () {
             Route::get('/', [LaporanController::class, 'advanced'])->name('index');
             Route::get('/analitik', [LaporanController::class, 'analitik'])->name('analitik');
@@ -128,7 +128,11 @@ Route::middleware(['auth'])->group(function () {
 
 // API Routes untuk AJAX calls
 Route::prefix('api')->middleware(['auth'])->group(function () {
-    Route::get('/santri/search', [SantriController::class, 'search'])->name('api.santri.search');
+
+    // API untuk pengasuh - santri search
+    Route::middleware(['role:pengasuh'])->group(function () {
+        Route::get('/santri/search', [SantriController::class, 'search'])->name('api.santri.search');
+    });
 
     // API untuk admin saja
     Route::middleware(['role:admin'])->group(function () {
@@ -136,6 +140,7 @@ Route::prefix('api')->middleware(['auth'])->group(function () {
         Route::get('/barang-titipan/search', [BarangTitipanController::class, 'search'])->name('api.barang-titipan.search');
     });
 
+    // API untuk semua user yang login
     Route::get('/dashboard/stats', [DashboardController::class, 'getStats'])->name('api.dashboard.stats');
 });
 

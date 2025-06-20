@@ -195,14 +195,6 @@
                         <span>Laporan Lanjutan</span>
                     </a>
                 @endif
-
-                <!-- Laporan -->
-                <a href="{{ route('laporan.index') }}"
-                    class="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-100 transition-colors 
-                          {{ request()->routeIs('laporan.*') ? 'active-menu' : 'text-gray-700' }}">
-                    <i class="fas fa-chart-bar w-5"></i>
-                    <span>Laporan</span>
-                </a>
             </nav>
         </div>
 
