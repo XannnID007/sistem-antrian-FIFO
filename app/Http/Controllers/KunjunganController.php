@@ -12,6 +12,176 @@ use Illuminate\Support\Facades\Auth;
 
 class KunjunganController extends Controller
 {
+    // METHOD STORE - FORCE JAKARTA TIME
+    public function store(Request $request)
+    {
+        $request->validate([
+            'santri_id' => 'required|exists:santri,id',
+            'nama_pengunjung' => 'required|string|max:255',
+            'hubungan' => 'required|string|max:100',
+            'phone_pengunjung' => 'required|string|max:20',
+            'alamat_pengunjung' => 'required|string',
+            'catatan' => 'nullable|string',
+            'barang_titipan' => 'nullable|array',
+            'barang_titipan.*.nama_barang' => 'required_with:barang_titipan|string|max:255',
+            'barang_titipan.*.jumlah' => 'required_with:barang_titipan|integer|min:1',
+            'barang_titipan.*.deskripsi' => 'nullable|string',
+        ]);
+
+        try {
+            DB::transaction(function () use ($request, &$kunjungan) {
+                // FORCE JAKARTA TIMEZONE
+                $jakartaTime = Carbon::now('Asia/Jakarta');
+
+                // Create kunjungan with explicit timezone
+                $kunjungan = new Kunjungan();
+                $kunjungan->nomor_antrian = Kunjungan::generateNomorAntrian();
+                $kunjungan->santri_id = $request->santri_id;
+                $kunjungan->nama_pengunjung = $request->nama_pengunjung;
+                $kunjungan->hubungan = $request->hubungan;
+                $kunjungan->phone_pengunjung = $request->phone_pengunjung;
+                $kunjungan->alamat_pengunjung = $request->alamat_pengunjung;
+                $kunjungan->status = 'menunggu';
+                $kunjungan->waktu_daftar = $jakartaTime; // This will use mutator
+                $kunjungan->catatan = $request->catatan;
+                $kunjungan->admin_id = Auth::id();
+                $kunjungan->save();
+
+                // Create barang titipan if any
+                if ($request->filled('barang_titipan')) {
+                    foreach ($request->barang_titipan as $barang) {
+                        if (!empty($barang['nama_barang'])) {
+                            $barangTitipan = new BarangTitipan();
+                            $barangTitipan->kode_barang = BarangTitipan::generateKodeBarang();
+                            $barangTitipan->kunjungan_id = $kunjungan->id;
+                            $barangTitipan->nama_barang = $barang['nama_barang'];
+                            $barangTitipan->deskripsi = $barang['deskripsi'] ?? null;
+                            $barangTitipan->jumlah = $barang['jumlah'];
+                            $barangTitipan->status = 'dititipkan';
+                            $barangTitipan->waktu_dititipkan = $jakartaTime;
+                            $barangTitipan->admin_penerima = Auth::id();
+                            $barangTitipan->save();
+                        }
+                    }
+                }
+
+                // Log activity
+                activity()
+                    ->causedBy(Auth::user())
+                    ->performedOn($kunjungan)
+                    ->log('Created new kunjungan: ' . $kunjungan->nomor_antrian);
+            });
+
+            return redirect()->route('kunjungan.antrian')
+                ->with('success', 'Kunjungan berhasil didaftarkan dengan nomor antrian: ' . $kunjungan->nomor_antrian);
+        } catch (\Exception $e) {
+            return back()
+                ->withInput()
+                ->with('error', 'Terjadi kesalahan saat mendaftarkan kunjungan: ' . $e->getMessage());
+        }
+    }
+
+    // METHOD PANGGIL - FORCE JAKARTA TIME
+    public function panggil(Kunjungan $kunjungan)
+    {
+        if ($kunjungan->status !== 'menunggu') {
+            return response()->json(['error' => 'Kunjungan tidak dalam status menunggu'], 400);
+        }
+
+        // FORCE JAKARTA TIMEZONE
+        $jakartaTime = Carbon::now('Asia/Jakarta');
+
+        $kunjungan->status = 'dipanggil';
+        $kunjungan->waktu_panggil = $jakartaTime; // This will use mutator
+        $kunjungan->save();
+
+        activity()
+            ->causedBy(Auth::user())
+            ->performedOn($kunjungan)
+            ->log('Called kunjungan: ' . $kunjungan->nomor_antrian);
+
+        return response()->json([
+            'success' => true,
+            'message' => "Nomor antrian {$kunjungan->nomor_antrian} telah dipanggil"
+        ]);
+    }
+
+    // METHOD MULAI - FORCE JAKARTA TIME
+    public function mulai(Kunjungan $kunjungan)
+    {
+        if ($kunjungan->status !== 'dipanggil') {
+            return response()->json(['error' => 'Kunjungan belum dipanggil'], 400);
+        }
+
+        // FORCE JAKARTA TIMEZONE
+        $jakartaTime = Carbon::now('Asia/Jakarta');
+
+        $kunjungan->status = 'berlangsung';
+        $kunjungan->waktu_mulai = $jakartaTime; // This will use mutator
+        $kunjungan->save();
+
+        activity()
+            ->causedBy(Auth::user())
+            ->performedOn($kunjungan)
+            ->log('Started kunjungan: ' . $kunjungan->nomor_antrian);
+
+        return response()->json([
+            'success' => true,
+            'message' => "Kunjungan {$kunjungan->nomor_antrian} telah dimulai"
+        ]);
+    }
+
+    // METHOD SELESAI - FORCE JAKARTA TIME
+    public function selesai(Kunjungan $kunjungan)
+    {
+        if ($kunjungan->status !== 'berlangsung') {
+            return response()->json(['error' => 'Kunjungan tidak sedang berlangsung'], 400);
+        }
+
+        // FORCE JAKARTA TIMEZONE
+        $jakartaTime = Carbon::now('Asia/Jakarta');
+
+        $kunjungan->status = 'selesai';
+        $kunjungan->waktu_selesai = $jakartaTime; // This will use mutator
+        $kunjungan->save();
+
+        activity()
+            ->causedBy(Auth::user())
+            ->performedOn($kunjungan)
+            ->log('Finished kunjungan: ' . $kunjungan->nomor_antrian);
+
+        return response()->json([
+            'success' => true,
+            'message' => "Kunjungan {$kunjungan->nomor_antrian} telah selesai"
+        ]);
+    }
+
+    // METHOD getQueueStatus - FORCE JAKARTA TIME
+    public function getQueueStatus()
+    {
+        $queue = Kunjungan::with(['santri'])
+            ->whereIn('status', ['menunggu', 'dipanggil', 'berlangsung'])
+            ->fifoOrder()
+            ->get()
+            ->map(function ($kunjungan) {
+                // FORCE JAKARTA TIMEZONE
+                $now = Carbon::now('Asia/Jakarta');
+
+                return [
+                    'id' => $kunjungan->id,
+                    'nomor_antrian' => $kunjungan->nomor_antrian,
+                    'nama_pengunjung' => $kunjungan->nama_pengunjung,
+                    'nama_santri' => $kunjungan->santri->nama,
+                    'status' => $kunjungan->status,
+                    'waktu_daftar' => $kunjungan->waktu_daftar->format('H:i'),
+                    'waktu_tunggu' => $kunjungan->waktu_daftar->diffInMinutes($now) . ' menit',
+                ];
+            });
+
+        return response()->json($queue);
+    }
+
+    // REST OF THE METHODS REMAIN THE SAME...
     public function index(Request $request)
     {
         $query = Kunjungan::with(['santri', 'admin']);
@@ -53,71 +223,6 @@ class KunjunganController extends Controller
         return view('kunjungan.create', compact('santri'));
     }
 
-    public function store(Request $request)
-    {
-        $request->validate([
-            'santri_id' => 'required|exists:santri,id',
-            'nama_pengunjung' => 'required|string|max:255',
-            'hubungan' => 'required|string|max:100',
-            'phone_pengunjung' => 'required|string|max:20',
-            'alamat_pengunjung' => 'required|string',
-            'catatan' => 'nullable|string',
-            'barang_titipan' => 'nullable|array',
-            'barang_titipan.*.nama_barang' => 'required_with:barang_titipan|string|max:255',
-            'barang_titipan.*.jumlah' => 'required_with:barang_titipan|integer|min:1',
-            'barang_titipan.*.deskripsi' => 'nullable|string',
-        ]);
-
-        try {
-            DB::transaction(function () use ($request, &$kunjungan) {
-                // Create kunjungan
-                $kunjungan = Kunjungan::create([
-                    'nomor_antrian' => Kunjungan::generateNomorAntrian(),
-                    'santri_id' => $request->santri_id,
-                    'nama_pengunjung' => $request->nama_pengunjung,
-                    'hubungan' => $request->hubungan,
-                    'phone_pengunjung' => $request->phone_pengunjung,
-                    'alamat_pengunjung' => $request->alamat_pengunjung,
-                    'status' => 'menunggu',
-                    'waktu_daftar' => now(),
-                    'catatan' => $request->catatan,
-                    'admin_id' => Auth::id(),
-                ]);
-
-                // Create barang titipan if any
-                if ($request->filled('barang_titipan')) {
-                    foreach ($request->barang_titipan as $barang) {
-                        if (!empty($barang['nama_barang'])) {
-                            BarangTitipan::create([
-                                'kode_barang' => BarangTitipan::generateKodeBarang(),
-                                'kunjungan_id' => $kunjungan->id,
-                                'nama_barang' => $barang['nama_barang'],
-                                'deskripsi' => $barang['deskripsi'] ?? null,
-                                'jumlah' => $barang['jumlah'],
-                                'status' => 'dititipkan',
-                                'waktu_dititipkan' => now(),
-                                'admin_penerima' => Auth::id(),
-                            ]);
-                        }
-                    }
-                }
-
-                // Log activity
-                activity()
-                    ->causedBy(Auth::user())
-                    ->performedOn($kunjungan)
-                    ->log('Created new kunjungan: ' . $kunjungan->nomor_antrian);
-            });
-
-            return redirect()->route('kunjungan.antrian')
-                ->with('success', 'Kunjungan berhasil didaftarkan dengan nomor antrian: ' . $kunjungan->nomor_antrian);
-        } catch (\Exception $e) {
-            return back()
-                ->withInput()
-                ->with('error', 'Terjadi kesalahan saat mendaftarkan kunjungan: ' . $e->getMessage());
-        }
-    }
-
     public function antrian()
     {
         $menunggu = Kunjungan::with(['santri'])
@@ -136,72 +241,6 @@ class KunjunganController extends Controller
             ->get();
 
         return view('kunjungan.antrian', compact('menunggu', 'dipanggil', 'berlangsung'));
-    }
-
-    public function panggil(Kunjungan $kunjungan)
-    {
-        if ($kunjungan->status !== 'menunggu') {
-            return response()->json(['error' => 'Kunjungan tidak dalam status menunggu'], 400);
-        }
-
-        $kunjungan->update([
-            'status' => 'dipanggil',
-            'waktu_panggil' => now(),
-        ]);
-
-        activity()
-            ->causedBy(Auth::user())
-            ->performedOn($kunjungan)
-            ->log('Called kunjungan: ' . $kunjungan->nomor_antrian);
-
-        return response()->json([
-            'success' => true,
-            'message' => "Nomor antrian {$kunjungan->nomor_antrian} telah dipanggil"
-        ]);
-    }
-
-    public function mulai(Kunjungan $kunjungan)
-    {
-        if ($kunjungan->status !== 'dipanggil') {
-            return response()->json(['error' => 'Kunjungan belum dipanggil'], 400);
-        }
-
-        $kunjungan->update([
-            'status' => 'berlangsung',
-            'waktu_mulai' => now(),
-        ]);
-
-        activity()
-            ->causedBy(Auth::user())
-            ->performedOn($kunjungan)
-            ->log('Started kunjungan: ' . $kunjungan->nomor_antrian);
-
-        return response()->json([
-            'success' => true,
-            'message' => "Kunjungan {$kunjungan->nomor_antrian} telah dimulai"
-        ]);
-    }
-
-    public function selesai(Kunjungan $kunjungan)
-    {
-        if ($kunjungan->status !== 'berlangsung') {
-            return response()->json(['error' => 'Kunjungan tidak sedang berlangsung'], 400);
-        }
-
-        $kunjungan->update([
-            'status' => 'selesai',
-            'waktu_selesai' => now(),
-        ]);
-
-        activity()
-            ->causedBy(Auth::user())
-            ->performedOn($kunjungan)
-            ->log('Finished kunjungan: ' . $kunjungan->nomor_antrian);
-
-        return response()->json([
-            'success' => true,
-            'message' => "Kunjungan {$kunjungan->nomor_antrian} telah selesai"
-        ]);
     }
 
     public function batal(Kunjungan $kunjungan)
@@ -233,26 +272,5 @@ class KunjunganController extends Controller
     {
         $kunjungan->load(['santri', 'barangTitipan']);
         return view('kunjungan.struk', compact('kunjungan'));
-    }
-
-    public function getQueueStatus()
-    {
-        $queue = Kunjungan::with(['santri'])
-            ->whereIn('status', ['menunggu', 'dipanggil', 'berlangsung'])
-            ->fifoOrder()
-            ->get()
-            ->map(function ($kunjungan) {
-                return [
-                    'id' => $kunjungan->id,
-                    'nomor_antrian' => $kunjungan->nomor_antrian,
-                    'nama_pengunjung' => $kunjungan->nama_pengunjung,
-                    'nama_santri' => $kunjungan->santri->nama,
-                    'status' => $kunjungan->status,
-                    'waktu_daftar' => $kunjungan->waktu_daftar->format('H:i'),
-                    'waktu_tunggu' => $kunjungan->waktu_daftar->diffInMinutes(now()) . ' menit',
-                ];
-            });
-
-        return response()->json($queue);
     }
 }

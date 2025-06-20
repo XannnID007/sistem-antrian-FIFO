@@ -296,22 +296,25 @@
 
 @push('scripts')
     <script>
-        // Fungsi export yang diperbaiki untuk laporan kunjungan
-        function exportData(format) {
+        // Fixed Export JavaScript untuk Laravel
+        function exportData(format, type = 'kunjungan') {
             showNotification('Memproses export data...', 'info');
 
             // Get current page parameters
             const urlParams = new URLSearchParams(window.location.search);
-            const tanggalMulai = urlParams.get('tanggal_mulai') || document.querySelector('input[name="tanggal_mulai"]')
-                ?.value;
-            const tanggalSelesai = urlParams.get('tanggal_selesai') || document.querySelector(
-                'input[name="tanggal_selesai"]')?.value;
-            const status = urlParams.get('status') || document.querySelector('select[name="status"]')?.value;
+            const tanggalMulai = urlParams.get('tanggal_mulai') ||
+                document.querySelector('input[name="tanggal_mulai"]')?.value ||
+                new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+            const tanggalSelesai = urlParams.get('tanggal_selesai') ||
+                document.querySelector('input[name="tanggal_selesai"]')?.value ||
+                new Date().toISOString().split('T')[0];
+            const status = urlParams.get('status') || document.querySelector('select[name="status"]')?.value || '';
 
-            // Determine the type based on current page
-            let type = 'kunjungan';
-            if (window.location.pathname.includes('barang-titipan')) {
+            // Determine the type based on current page if not specified
+            if (type === 'kunjungan' && window.location.pathname.includes('barang-titipan')) {
                 type = 'barang-titipan';
+            } else if (type === 'kunjungan' && window.location.pathname.includes('santri')) {
+                type = 'santri';
             }
 
             // Create form for file download
@@ -319,6 +322,7 @@
             form.method = 'POST';
             form.action = '/laporan/export';
             form.style.display = 'none';
+            form.target = '_blank'; // Open in new tab to prevent page refresh
 
             // Add CSRF token
             const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
@@ -331,44 +335,127 @@
             // Add parameters
             const params = {
                 type: type,
-                format: format,
-                tanggal_mulai: tanggalMulai,
-                tanggal_selesai: tanggalSelesai
+                format: format
             };
 
+            // Add date parameters only for kunjungan and barang-titipan
+            if (type === 'kunjungan' || type === 'barang-titipan') {
+                params.tanggal_mulai = tanggalMulai;
+                params.tanggal_selesai = tanggalSelesai;
+            }
+
+            // Add status if exists
             if (status) {
                 params.status = status;
             }
 
+            // Create form inputs
             for (const [key, value] of Object.entries(params)) {
-                const input = document.createElement('input');
-                input.type = 'hidden';
-                input.name = key;
-                input.value = value;
-                form.appendChild(input);
+                if (value) { // Only add if value exists
+                    const input = document.createElement('input');
+                    input.type = 'hidden';
+                    input.name = key;
+                    input.value = value;
+                    form.appendChild(input);
+                }
             }
 
             // Submit form
             document.body.appendChild(form);
             form.submit();
 
-            // Clean up
+            // Clean up and show success message
             setTimeout(() => {
                 document.body.removeChild(form);
-                showNotification('Export berhasil! File akan didownload.', 'success');
+                showNotification(`Export ${format.toUpperCase()} berhasil! File akan didownload.`, 'success');
             }, 1000);
         }
 
-        // Fungsi export khusus untuk dashboard (all data)
-        function exportAllData(format) {
-            showNotification('Memproses export semua data...', 'info');
+        // Export function with date range modal
+        function exportWithDateRange(format) {
+            // Remove existing modal if any
+            const existingModal = document.getElementById('export-modal');
+            if (existingModal) {
+                existingModal.remove();
+            }
 
+            // Create modal for date selection
+            const modal = document.createElement('div');
+            modal.className = 'fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50';
+            modal.id = 'export-modal';
+            modal.innerHTML = `
+        <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+            <div class="mt-3">
+                <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">Export Data</h3>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Tanggal Mulai</label>
+                        <input type="date" id="export-start-date" value="${new Date(Date.now() - 30*24*60*60*1000).toISOString().split('T')[0]}" 
+                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Tanggal Selesai</label>
+                        <input type="date" id="export-end-date" value="${new Date().toISOString().split('T')[0]}" 
+                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Tipe Data</label>
+                        <select id="export-type" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                            <option value="kunjungan">Kunjungan</option>
+                            <option value="barang-titipan">Barang Titipan</option>
+                            <option value="santri">Data Santri</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="items-center px-4 py-3 mt-6">
+                    <button onclick="executeExport('${format}')" 
+                            class="px-4 py-2 bg-blue-600 text-white text-base font-medium rounded-md w-full shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-300">
+                        Export ${format.toUpperCase()}
+                    </button>
+                    <button onclick="closeExportModal()" 
+                            class="mt-3 px-4 py-2 bg-gray-300 text-gray-800 text-base font-medium rounded-md w-full shadow-sm hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-300">
+                        Batal
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+
+            document.body.appendChild(modal);
+
+            // Close modal when clicking outside
+            modal.addEventListener('click', function(e) {
+                if (e.target === modal) {
+                    closeExportModal();
+                }
+            });
+        }
+
+        function executeExport(format) {
+            const startDate = document.getElementById('export-start-date').value;
+            const endDate = document.getElementById('export-end-date').value;
+            const type = document.getElementById('export-type').value;
+
+            if (!startDate || !endDate) {
+                showNotification('Mohon pilih tanggal mulai dan selesai', 'error');
+                return;
+            }
+
+            if (new Date(startDate) > new Date(endDate)) {
+                showNotification('Tanggal mulai tidak boleh lebih besar dari tanggal selesai', 'error');
+                return;
+            }
+
+            // Close modal
+            closeExportModal();
+
+            // Create export form
             const form = document.createElement('form');
             form.method = 'POST';
             form.action = '/laporan/export';
             form.style.display = 'none';
+            form.target = '_blank';
 
-            // Add CSRF token
             const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
             const csrfInput = document.createElement('input');
             csrfInput.type = 'hidden';
@@ -376,12 +463,11 @@
             csrfInput.value = csrfToken;
             form.appendChild(csrfInput);
 
-            // Add parameters for all data
             const params = {
-                type: 'kunjungan', // Default to kunjungan for all data export
+                type: type,
                 format: format,
-                tanggal_mulai: '2020-01-01', // Very old date to get all data
-                tanggal_selesai: new Date().toISOString().split('T')[0] // Today
+                tanggal_mulai: startDate,
+                tanggal_selesai: endDate
             };
 
             for (const [key, value] of Object.entries(params)) {
@@ -397,8 +483,15 @@
 
             setTimeout(() => {
                 document.body.removeChild(form);
-                showNotification('Export semua data berhasil!', 'success');
+                showNotification(`Export ${format.toUpperCase()} berhasil!`, 'success');
             }, 1000);
+        }
+
+        function closeExportModal() {
+            const modal = document.getElementById('export-modal');
+            if (modal) {
+                modal.remove();
+            }
         }
 
         // Enhanced notification function
@@ -445,112 +538,17 @@
             }, 5000);
         }
 
-        // Export function for specific date range (with modal)
-        function exportWithDateRange(format) {
-            // Create modal for date selection
-            const modal = document.createElement('div');
-            modal.className = 'fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50';
-            modal.innerHTML = `
-        <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
-            <div class="mt-3">
-                <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">Export Data</h3>
-                <div class="space-y-4">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Tanggal Mulai</label>
-                        <input type="date" id="export-start-date" value="${new Date(Date.now() - 30*24*60*60*1000).toISOString().split('T')[0]}" 
-                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Tanggal Selesai</label>
-                        <input type="date" id="export-end-date" value="${new Date().toISOString().split('T')[0]}" 
-                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Tipe Data</label>
-                        <select id="export-type" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                            <option value="kunjungan">Kunjungan</option>
-                            <option value="barang-titipan">Barang Titipan</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="items-center px-4 py-3 mt-6">
-                    <button onclick="executeExport('${format}')" 
-                            class="px-4 py-2 bg-blue-600 text-white text-base font-medium rounded-md w-full shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-300">
-                        Export ${format.toUpperCase()}
-                    </button>
-                    <button onclick="closeExportModal()" 
-                            class="mt-3 px-4 py-2 bg-gray-300 text-gray-800 text-base font-medium rounded-md w-full shadow-sm hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-300">
-                        Batal
-                    </button>
-                </div>
-            </div>
-        </div>
-    `;
-
-            document.body.appendChild(modal);
-            modal.id = 'export-modal';
+        // Quick export functions for specific data types
+        function exportKunjungan(format) {
+            exportData(format, 'kunjungan');
         }
 
-        function executeExport(format) {
-            const startDate = document.getElementById('export-start-date').value;
-            const endDate = document.getElementById('export-end-date').value;
-            const type = document.getElementById('export-type').value;
-
-            if (!startDate || !endDate) {
-                showNotification('Mohon pilih tanggal mulai dan selesai', 'error');
-                return;
-            }
-
-            if (new Date(startDate) > new Date(endDate)) {
-                showNotification('Tanggal mulai tidak boleh lebih besar dari tanggal selesai', 'error');
-                return;
-            }
-
-            // Close modal
-            closeExportModal();
-
-            // Create export form
-            const form = document.createElement('form');
-            form.method = 'POST';
-            form.action = '/laporan/export';
-            form.style.display = 'none';
-
-            const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
-            const csrfInput = document.createElement('input');
-            csrfInput.type = 'hidden';
-            csrfInput.name = '_token';
-            csrfInput.value = csrfToken;
-            form.appendChild(csrfInput);
-
-            const params = {
-                type: type,
-                format: format,
-                tanggal_mulai: startDate,
-                tanggal_selesai: endDate
-            };
-
-            for (const [key, value] of Object.entries(params)) {
-                const input = document.createElement('input');
-                input.type = 'hidden';
-                input.name = key;
-                input.value = value;
-                form.appendChild(input);
-            }
-
-            document.body.appendChild(form);
-            form.submit();
-
-            setTimeout(() => {
-                document.body.removeChild(form);
-                showNotification(`Export ${format.toUpperCase()} berhasil!`, 'success');
-            }, 1000);
+        function exportBarangTitipan(format) {
+            exportData(format, 'barang-titipan');
         }
 
-        function closeExportModal() {
-            const modal = document.getElementById('export-modal');
-            if (modal) {
-                modal.remove();
-            }
+        function exportSantri(format) {
+            exportData(format, 'santri');
         }
 
         // Initialize export functionality on page load
@@ -559,9 +557,12 @@
             document.addEventListener('click', function(e) {
                 if (e.target.matches('[onclick*="exportData"]')) {
                     e.preventDefault();
-                    const format = e.target.getAttribute('onclick').match(/exportData\('(\w+)'\)/)?.[1];
-                    if (format) {
-                        exportData(format);
+                    const onclickAttr = e.target.getAttribute('onclick');
+                    const matches = onclickAttr.match(/exportData\('(\w+)'(?:,\s*'(\w+)')?\)/);
+                    if (matches) {
+                        const format = matches[1];
+                        const type = matches[2] || 'kunjungan';
+                        exportData(format, type);
                     }
                 }
             });
@@ -587,9 +588,22 @@
             }
         });
 
-        // Auto refresh statistics every 5 minutes
-        setInterval(function() {
-            location.reload();
-        }, 300000);
+        // Global error handler for export failures
+        window.addEventListener('error', function(e) {
+            if (e.message.includes('export')) {
+                showNotification('Terjadi kesalahan saat export. Silakan coba lagi.', 'error');
+            }
+        });
+
+        // Check if export was successful (for form submissions)
+        function checkExportStatus() {
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.has('exported') && urlParams.get('exported') === 'success') {
+                showNotification('Export berhasil!', 'success');
+                // Remove the parameter from URL without refreshing
+                const newUrl = window.location.pathname + (window.location.search.replace(/[?&]exported=success/, ''));
+                window.history.replaceState({}, document.title, newUrl);
+            }
+        }
     </script>
 @endpush

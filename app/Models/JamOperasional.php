@@ -15,15 +15,21 @@ class JamOperasional extends Model
     protected $fillable = ['hari', 'jam_buka', 'jam_tutup', 'is_active'];
 
     protected $casts = [
-        'jam_buka' => 'datetime:H:i',
-        'jam_tutup' => 'datetime:H:i',
         'is_active' => 'boolean',
+    ];
+
+    // Remove datetime casting for jam_buka and jam_tutup to handle as time only
+    protected $dates = [
+        'created_at',
+        'updated_at',
     ];
 
     public static function isOperasional()
     {
-        $today = strtolower(Carbon::now()->locale('id')->dayName);
-        $now = Carbon::now()->format('H:i');
+        // Get current time in Jakarta timezone
+        $now = Carbon::now('Asia/Jakarta');
+        $today = strtolower($now->locale('id')->dayName);
+        $currentTime = $now->format('H:i');
 
         $jadwal = self::where('hari', $today)
             ->where('is_active', true)
@@ -31,7 +37,18 @@ class JamOperasional extends Model
 
         if (!$jadwal) return false;
 
-        return $now >= $jadwal->jam_buka->format('H:i') &&
-            $now <= $jadwal->jam_tutup->format('H:i');
+        return $currentTime >= $jadwal->jam_buka && $currentTime <= $jadwal->jam_tutup;
+    }
+
+    // Accessor untuk jam_buka
+    public function getJamBukaAttribute($value)
+    {
+        return $value ? substr($value, 0, 5) : null; // Return HH:MM format
+    }
+
+    // Accessor untuk jam_tutup
+    public function getJamTutupAttribute($value)
+    {
+        return $value ? substr($value, 0, 5) : null; // Return HH:MM format
     }
 }

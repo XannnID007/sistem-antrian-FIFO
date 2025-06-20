@@ -2,23 +2,21 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
-use App\Models\Kunjungan;
-use App\Models\Santri;
-use App\Models\BarangTitipan;
-use App\Services\ExportService;
 use Carbon\Carbon;
+use App\Models\Santri;
+use App\Models\Kunjungan;
+use Illuminate\Http\Request;
+use App\Exports\SantriExport;
+use App\Models\BarangTitipan;
+use Barryvdh\DomPDF\Facade\Pdf;
+use App\Exports\KunjunganExport;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use App\Exports\BarangTitipanExport;
+use Maatwebsite\Excel\Facades\Excel;
 
 class LaporanController extends Controller
 {
-    protected $exportService;
-
-    public function __construct(ExportService $exportService)
-    {
-        $this->exportService = $exportService;
-    }
-
     /**
      * Display laporan dashboard
      */
@@ -139,76 +137,221 @@ class LaporanController extends Controller
     }
 
     /**
-     * Export laporan
+     * Export laporan - FIXED VERSION
      */
     public function export(Request $request)
     {
         try {
-            $type = $request->get('type', 'kunjungan');
-            $format = $request->get('format', 'excel');
-            $tanggalMulai = $request->get('tanggal_mulai', Carbon::now()->startOfMonth()->format('Y-m-d'));
-            $tanggalSelesai = $request->get('tanggal_selesai', Carbon::now()->endOfMonth()->format('Y-m-d'));
-            $status = $request->get('status');
-
-            // Validate parameters
+            // Validate request
             $request->validate([
-                'type' => 'required|in:kunjungan,barang-titipan,all',
+                'type' => 'required|in:kunjungan,barang-titipan,santri',
                 'format' => 'required|in:excel,pdf,csv',
-                'tanggal_mulai' => 'required|date',
-                'tanggal_selesai' => 'required|date|after_or_equal:tanggal_mulai'
+                'tanggal_mulai' => 'sometimes|date',
+                'tanggal_selesai' => 'sometimes|date|after_or_equal:tanggal_mulai',
+                'status' => 'sometimes|string'
             ]);
 
-            $exportResult = null;
+            $type = $request->get('type');
+            $format = $request->get('format');
+            $tanggalMulai = $request->get('tanggal_mulai');
+            $tanggalSelesai = $request->get('tanggal_selesai');
+            $status = $request->get('status');
 
-            // Export based on type and format
-            if ($type === 'kunjungan') {
-                switch ($format) {
-                    case 'excel':
-                        $exportResult = $this->exportService->exportKunjunganExcel($tanggalMulai, $tanggalSelesai, $status);
-                        break;
-                    case 'pdf':
-                        $exportResult = $this->exportService->exportKunjunganPdf($tanggalMulai, $tanggalSelesai, $status);
-                        break;
-                    case 'csv':
-                        $exportResult = $this->exportService->exportKunjunganCsv($tanggalMulai, $tanggalSelesai, $status);
-                        break;
-                }
-            } elseif ($type === 'barang-titipan') {
-                switch ($format) {
-                    case 'excel':
-                        $exportResult = $this->exportService->exportBarangTitipanExcel($tanggalMulai, $tanggalSelesai, $status);
-                        break;
-                    case 'pdf':
-                        $exportResult = $this->exportService->exportBarangTitipanPdf($tanggalMulai, $tanggalSelesai, $status);
-                        break;
-                    case 'csv':
-                        $exportResult = $this->exportService->exportBarangTitipanCsv($tanggalMulai, $tanggalSelesai, $status);
-                        break;
-                }
+            // Generate filename
+            $timestamp = now()->format('Y-m-d_H-i-s');
+            $filename = "laporan_{$type}_{$timestamp}";
+
+            switch ($type) {
+                case 'kunjungan':
+                    return $this->exportKunjungan($format, $filename, $tanggalMulai, $tanggalSelesai, $status);
+
+                case 'barang-titipan':
+                    return $this->exportBarangTitipan($format, $filename, $tanggalMulai, $tanggalSelesai, $status);
+
+                case 'santri':
+                    return $this->exportSantri($format, $filename, $status);
+
+                default:
+                    return response()->json(['error' => 'Invalid export type'], 400);
             }
-
-            if (!$exportResult) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Format export tidak didukung'
-                ], 400);
-            }
-
-            // Return file download
-            return response()->download(
-                $exportResult['file'],
-                $exportResult['filename'],
-                [
-                    'Content-Type' => $exportResult['mime'],
-                    'Content-Disposition' => 'attachment; filename="' . $exportResult['filename'] . '"'
-                ]
-            )->deleteFileAfterSend(true);
         } catch (\Exception $e) {
+            Log::error('Export error: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
                 'message' => 'Terjadi kesalahan saat export: ' . $e->getMessage()
             ], 500);
         }
+    }
+
+    /**
+     * Export Kunjungan
+     */
+    private function exportKunjungan($format, $filename, $tanggalMulai = null, $tanggalSelesai = null, $status = null)
+    {
+        switch ($format) {
+            case 'excel':
+                return Excel::download(
+                    new KunjunganExport($tanggalMulai, $tanggalSelesai, $status),
+                    $filename . '.xlsx'
+                );
+
+            case 'csv':
+                return Excel::download(
+                    new KunjunganExport($tanggalMulai, $tanggalSelesai, $status),
+                    $filename . '.csv',
+                    \Maatwebsite\Excel\Excel::CSV
+                );
+
+            case 'pdf':
+                return $this->exportKunjunganPdf($filename, $tanggalMulai, $tanggalSelesai, $status);
+
+            default:
+                throw new \Exception('Format tidak didukung');
+        }
+    }
+
+    /**
+     * Export Barang Titipan
+     */
+    private function exportBarangTitipan($format, $filename, $tanggalMulai = null, $tanggalSelesai = null, $status = null)
+    {
+        switch ($format) {
+            case 'excel':
+                return Excel::download(
+                    new BarangTitipanExport($tanggalMulai, $tanggalSelesai, $status),
+                    $filename . '.xlsx'
+                );
+
+            case 'csv':
+                return Excel::download(
+                    new BarangTitipanExport($tanggalMulai, $tanggalSelesai, $status),
+                    $filename . '.csv',
+                    \Maatwebsite\Excel\Excel::CSV
+                );
+
+            case 'pdf':
+                return $this->exportBarangTitipanPdf($filename, $tanggalMulai, $tanggalSelesai, $status);
+
+            default:
+                throw new \Exception('Format tidak didukung');
+        }
+    }
+
+    /**
+     * Export Santri
+     */
+    private function exportSantri($format, $filename, $status = null)
+    {
+        switch ($format) {
+            case 'excel':
+                return Excel::download(
+                    new SantriExport($status),
+                    $filename . '.xlsx'
+                );
+
+            case 'csv':
+                return Excel::download(
+                    new SantriExport($status),
+                    $filename . '.csv',
+                    \Maatwebsite\Excel\Excel::CSV
+                );
+
+            case 'pdf':
+                return $this->exportSantriPdf($filename, $status);
+
+            default:
+                throw new \Exception('Format tidak didukung');
+        }
+    }
+
+    /**
+     * Export Kunjungan to PDF
+     */
+    private function exportKunjunganPdf($filename, $tanggalMulai = null, $tanggalSelesai = null, $status = null)
+    {
+        $query = Kunjungan::with(['santri', 'admin']);
+
+        if ($tanggalMulai) {
+            $query->whereDate('waktu_daftar', '>=', $tanggalMulai);
+        }
+
+        if ($tanggalSelesai) {
+            $query->whereDate('waktu_daftar', '<=', $tanggalSelesai);
+        }
+
+        if ($status) {
+            $query->where('status', $status);
+        }
+
+        $kunjungan = $query->latest('waktu_daftar')->get();
+
+        $data = [
+            'kunjungan' => $kunjungan,
+            'tanggalMulai' => $tanggalMulai ? Carbon::parse($tanggalMulai)->format('d/m/Y') : 'Semua',
+            'tanggalSelesai' => $tanggalSelesai ? Carbon::parse($tanggalSelesai)->format('d/m/Y') : 'Semua',
+            'status' => $status ? ucfirst($status) : 'Semua Status',
+            'total' => $kunjungan->count()
+        ];
+
+        $pdf = PDF::loadView('laporan.pdf.kunjungan', $data);
+        return $pdf->download($filename . '.pdf');
+    }
+
+    /**
+     * Export Barang Titipan to PDF
+     */
+    private function exportBarangTitipanPdf($filename, $tanggalMulai = null, $tanggalSelesai = null, $status = null)
+    {
+        $query = BarangTitipan::with(['kunjungan.santri', 'adminPenerima']);
+
+        if ($tanggalMulai) {
+            $query->whereDate('waktu_dititipkan', '>=', $tanggalMulai);
+        }
+
+        if ($tanggalSelesai) {
+            $query->whereDate('waktu_dititipkan', '<=', $tanggalSelesai);
+        }
+
+        if ($status) {
+            $query->where('status', $status);
+        }
+
+        $barangTitipan = $query->latest('waktu_dititipkan')->get();
+
+        $data = [
+            'barangTitipan' => $barangTitipan,
+            'tanggalMulai' => $tanggalMulai ? Carbon::parse($tanggalMulai)->format('d/m/Y') : 'Semua',
+            'tanggalSelesai' => $tanggalSelesai ? Carbon::parse($tanggalSelesai)->format('d/m/Y') : 'Semua',
+            'status' => $status ? ucfirst($status) : 'Semua Status',
+            'total' => $barangTitipan->count()
+        ];
+
+        $pdf = PDF::loadView('laporan.pdf.barang-titipan', $data);
+        return $pdf->download($filename . '.pdf');
+    }
+
+    /**
+     * Export Santri to PDF
+     */
+    private function exportSantriPdf($filename, $status = null)
+    {
+        $query = Santri::withCount('kunjungan');
+
+        if ($status !== null) {
+            $isActive = $status === 'active';
+            $query->where('is_active', $isActive);
+        }
+
+        $santri = $query->latest()->get();
+
+        $data = [
+            'santri' => $santri,
+            'status' => $status ? ($status === 'active' ? 'Aktif' : 'Tidak Aktif') : 'Semua Status',
+            'total' => $santri->count()
+        ];
+
+        $pdf = PDF::loadView('laporan.pdf.santri', $data);
+        return $pdf->download($filename . '.pdf');
     }
 
     /**
@@ -238,80 +381,6 @@ class LaporanController extends Controller
     }
 
     /**
-     * Analytics dashboard
-     */
-    public function analitik()
-    {
-        // Detailed analytics
-        $analytics = [
-            'conversion_rate' => $this->calculateConversionRate(),
-            'average_wait_time' => $this->calculateAverageWaitTime(),
-            'peak_days' => $this->getPeakDays(),
-            'santri_activity' => $this->getSantriActivity()
-        ];
-
-        return view('laporan.analitik', compact('analytics'));
-    }
-
-    /**
-     * Trend analysis
-     */
-    public function trend()
-    {
-        // Trend analysis data
-        $trends = [
-            'monthly_growth' => $this->calculateMonthlyGrowth(),
-            'seasonal_patterns' => $this->getSeasonalPatterns(),
-            'forecast' => $this->generateForecast()
-        ];
-
-        return view('laporan.trend', compact('trends'));
-    }
-
-    /**
-     * Backup data
-     */
-    public function backup()
-    {
-        try {
-            // Create database backup
-            $backupPath = storage_path('app/backups/');
-            if (!file_exists($backupPath)) {
-                mkdir($backupPath, 0755, true);
-            }
-
-            $filename = 'backup_' . date('Y-m-d_H-i-s') . '.sql';
-            $fullPath = $backupPath . $filename;
-
-            // Execute mysqldump command
-            $command = sprintf(
-                'mysqldump --user=%s --password=%s --host=%s %s > %s',
-                config('database.connections.mysql.username'),
-                config('database.connections.mysql.password'),
-                config('database.connections.mysql.host'),
-                config('database.connections.mysql.database'),
-                $fullPath
-            );
-
-            exec($command);
-
-            if (file_exists($fullPath)) {
-                return response()->download($fullPath, $filename)->deleteFileAfterSend(true);
-            } else {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Gagal membuat backup database'
-                ], 500);
-            }
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Terjadi kesalahan saat backup: ' . $e->getMessage()
-            ], 500);
-        }
-    }
-
-    /**
      * Helper methods for analytics
      */
     private function calculateConversionRate()
@@ -327,59 +396,5 @@ class LaporanController extends Controller
         return Kunjungan::where('status', 'selesai')
             ->whereNotNull('waktu_tunggu')
             ->avg('waktu_tunggu') ?? 0;
-    }
-
-    private function getPeakDays()
-    {
-        return Kunjungan::select(DB::raw('DAYNAME(waktu_daftar) as day'), DB::raw('COUNT(*) as count'))
-            ->groupBy('day')
-            ->orderBy('count', 'desc')
-            ->take(3)
-            ->get();
-    }
-
-    private function getSantriActivity()
-    {
-        return Santri::withCount('kunjungan')
-            ->orderBy('kunjungan_count', 'desc')
-            ->take(10)
-            ->get();
-    }
-
-    private function calculateMonthlyGrowth()
-    {
-        $thisMonth = Kunjungan::whereMonth('waktu_daftar', now()->month)->count();
-        $lastMonth = Kunjungan::whereMonth('waktu_daftar', now()->subMonth()->month)->count();
-
-        return $lastMonth > 0 ? (($thisMonth - $lastMonth) / $lastMonth) * 100 : 0;
-    }
-
-    private function getSeasonalPatterns()
-    {
-        return Kunjungan::select(DB::raw('MONTH(waktu_daftar) as month'), DB::raw('COUNT(*) as count'))
-            ->groupBy('month')
-            ->orderBy('month')
-            ->get();
-    }
-
-    private function generateForecast()
-    {
-        // Simple linear forecast based on last 6 months
-        $data = Kunjungan::select(DB::raw('YEAR(waktu_daftar) as year'), DB::raw('MONTH(waktu_daftar) as month'), DB::raw('COUNT(*) as count'))
-            ->where('waktu_daftar', '>=', now()->subMonths(6))
-            ->groupBy('year', 'month')
-            ->orderBy('year')
-            ->orderBy('month')
-            ->get();
-
-        // Calculate simple trend
-        $counts = $data->pluck('count')->toArray();
-        if (count($counts) >= 2) {
-            $trend = (end($counts) - reset($counts)) / count($counts);
-            $nextMonth = end($counts) + $trend;
-            return max(0, round($nextMonth));
-        }
-
-        return 0;
     }
 }

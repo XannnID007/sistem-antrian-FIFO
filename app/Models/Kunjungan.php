@@ -28,11 +28,14 @@ class Kunjungan extends Model
         'admin_id'
     ];
 
-    protected $casts = [
-        'waktu_daftar' => 'datetime',
-        'waktu_panggil' => 'datetime',
-        'waktu_mulai' => 'datetime',
-        'waktu_selesai' => 'datetime',
+    // DO NOT USE CASTS - we'll handle manually
+    protected $dates = [
+        'waktu_daftar',
+        'waktu_panggil',
+        'waktu_mulai',
+        'waktu_selesai',
+        'created_at',
+        'updated_at'
     ];
 
     public function santri()
@@ -48,6 +51,76 @@ class Kunjungan extends Model
     public function barangTitipan()
     {
         return $this->hasMany(BarangTitipan::class);
+    }
+
+    // FORCE JAKARTA TIMEZONE FOR ALL DATETIME ACCESSORS
+    public function getWaktuDaftarAttribute($value)
+    {
+        if (!$value) return null;
+        return Carbon::createFromFormat('Y-m-d H:i:s', $value, 'UTC')->setTimezone('Asia/Jakarta');
+    }
+
+    public function getWaktuPanggilAttribute($value)
+    {
+        if (!$value) return null;
+        return Carbon::createFromFormat('Y-m-d H:i:s', $value, 'UTC')->setTimezone('Asia/Jakarta');
+    }
+
+    public function getWaktuMulaiAttribute($value)
+    {
+        if (!$value) return null;
+        return Carbon::createFromFormat('Y-m-d H:i:s', $value, 'UTC')->setTimezone('Asia/Jakarta');
+    }
+
+    public function getWaktuSelesaiAttribute($value)
+    {
+        if (!$value) return null;
+        return Carbon::createFromFormat('Y-m-d H:i:s', $value, 'UTC')->setTimezone('Asia/Jakarta');
+    }
+
+    public function getCreatedAtAttribute($value)
+    {
+        if (!$value) return null;
+        return Carbon::createFromFormat('Y-m-d H:i:s', $value, 'UTC')->setTimezone('Asia/Jakarta');
+    }
+
+    public function getUpdatedAtAttribute($value)
+    {
+        if (!$value) return null;
+        return Carbon::createFromFormat('Y-m-d H:i:s', $value, 'UTC')->setTimezone('Asia/Jakarta');
+    }
+
+    // FORCE JAKARTA TIMEZONE FOR ALL DATETIME MUTATORS
+    public function setWaktuDaftarAttribute($value)
+    {
+        if ($value) {
+            $carbon = $value instanceof Carbon ? $value : Carbon::parse($value, 'Asia/Jakarta');
+            $this->attributes['waktu_daftar'] = $carbon->utc()->format('Y-m-d H:i:s');
+        }
+    }
+
+    public function setWaktuPanggilAttribute($value)
+    {
+        if ($value) {
+            $carbon = $value instanceof Carbon ? $value : Carbon::parse($value, 'Asia/Jakarta');
+            $this->attributes['waktu_panggil'] = $carbon->utc()->format('Y-m-d H:i:s');
+        }
+    }
+
+    public function setWaktuMulaiAttribute($value)
+    {
+        if ($value) {
+            $carbon = $value instanceof Carbon ? $value : Carbon::parse($value, 'Asia/Jakarta');
+            $this->attributes['waktu_mulai'] = $carbon->utc()->format('Y-m-d H:i:s');
+        }
+    }
+
+    public function setWaktuSelesaiAttribute($value)
+    {
+        if ($value) {
+            $carbon = $value instanceof Carbon ? $value : Carbon::parse($value, 'Asia/Jakarta');
+            $this->attributes['waktu_selesai'] = $carbon->utc()->format('Y-m-d H:i:s');
+        }
     }
 
     public function getDurasiKunjunganAttribute()
@@ -68,14 +141,15 @@ class Kunjungan extends Model
 
     public static function generateNomorAntrian()
     {
-        $today = Carbon::today();
-        $count = self::whereDate('waktu_daftar', $today)->count() + 1;
-        return 'A' . date('dmy') . sprintf('%03d', $count);
+        $today = Carbon::now('Asia/Jakarta');
+        $count = self::whereDate('waktu_daftar', $today->format('Y-m-d'))->count() + 1;
+        return 'A' . $today->format('dmy') . sprintf('%03d', $count);
     }
 
     public function scopeToday($query)
     {
-        return $query->whereDate('waktu_daftar', Carbon::today());
+        $today = Carbon::now('Asia/Jakarta')->format('Y-m-d');
+        return $query->whereDate('waktu_daftar', $today);
     }
 
     public function scopeByStatus($query, $status)

@@ -209,54 +209,314 @@
 
 @push('scripts')
     <script>
-        function exportData(format) {
+        // Fixed Export JavaScript untuk Laravel
+        function exportData(format, type = 'kunjungan') {
             showNotification('Memproses export data...', 'info');
 
-            const params = new URLSearchParams(window.location.search);
-            params.set('format', format);
+            // Get current page parameters
+            const urlParams = new URLSearchParams(window.location.search);
+            const tanggalMulai = urlParams.get('tanggal_mulai') ||
+                document.querySelector('input[name="tanggal_mulai"]')?.value ||
+                new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+            const tanggalSelesai = urlParams.get('tanggal_selesai') ||
+                document.querySelector('input[name="tanggal_selesai"]')?.value ||
+                new Date().toISOString().split('T')[0];
+            const status = urlParams.get('status') || document.querySelector('select[name="status"]')?.value || '';
 
-            fetch('{{ route('laporan.export') }}', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-                    },
-                    body: JSON.stringify({
-                        type: 'kunjungan',
-                        format: format,
-                        tanggal_mulai: '{{ $tanggalMulai }}',
-                        tanggal_selesai: '{{ $tanggalSelesai }}',
-                        status: '{{ request('status') }}'
-                    })
-                })
-                .then(response => response.json())
-                .then(data => {
-                    showNotification('Export berhasil!', 'success');
-                })
-                .catch(error => {
-                    showNotification('Export gagal. Silakan coba lagi.', 'error');
-                });
+            // Determine the type based on current page if not specified
+            if (type === 'kunjungan' && window.location.pathname.includes('barang-titipan')) {
+                type = 'barang-titipan';
+            } else if (type === 'kunjungan' && window.location.pathname.includes('santri')) {
+                type = 'santri';
+            }
+
+            // Create form for file download
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = '/laporan/export';
+            form.style.display = 'none';
+            form.target = '_blank'; // Open in new tab to prevent page refresh
+
+            // Add CSRF token
+            const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+            const csrfInput = document.createElement('input');
+            csrfInput.type = 'hidden';
+            csrfInput.name = '_token';
+            csrfInput.value = csrfToken;
+            form.appendChild(csrfInput);
+
+            // Add parameters
+            const params = {
+                type: type,
+                format: format
+            };
+
+            // Add date parameters only for kunjungan and barang-titipan
+            if (type === 'kunjungan' || type === 'barang-titipan') {
+                params.tanggal_mulai = tanggalMulai;
+                params.tanggal_selesai = tanggalSelesai;
+            }
+
+            // Add status if exists
+            if (status) {
+                params.status = status;
+            }
+
+            // Create form inputs
+            for (const [key, value] of Object.entries(params)) {
+                if (value) { // Only add if value exists
+                    const input = document.createElement('input');
+                    input.type = 'hidden';
+                    input.name = key;
+                    input.value = value;
+                    form.appendChild(input);
+                }
+            }
+
+            // Submit form
+            document.body.appendChild(form);
+            form.submit();
+
+            // Clean up and show success message
+            setTimeout(() => {
+                document.body.removeChild(form);
+                showNotification(`Export ${format.toUpperCase()} berhasil! File akan didownload.`, 'success');
+            }, 1000);
         }
 
-        function showNotification(message, type = 'info') {
-            const notification = document.createElement('div');
-            notification.className = `fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg max-w-sm ${
-            type === 'success' ? 'bg-green-500 text-white' :
-            type === 'error' ? 'bg-red-500 text-white' :
-            'bg-blue-500 text-white'
-        }`;
-            notification.innerHTML = `
-            <div class="flex items-center">
-                <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : 'info-circle'} mr-2"></i>
-                <span>${message}</span>
+        // Export function with date range modal
+        function exportWithDateRange(format) {
+            // Remove existing modal if any
+            const existingModal = document.getElementById('export-modal');
+            if (existingModal) {
+                existingModal.remove();
+            }
+
+            // Create modal for date selection
+            const modal = document.createElement('div');
+            modal.className = 'fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50';
+            modal.id = 'export-modal';
+            modal.innerHTML = `
+        <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+            <div class="mt-3">
+                <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">Export Data</h3>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Tanggal Mulai</label>
+                        <input type="date" id="export-start-date" value="${new Date(Date.now() - 30*24*60*60*1000).toISOString().split('T')[0]}" 
+                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Tanggal Selesai</label>
+                        <input type="date" id="export-end-date" value="${new Date().toISOString().split('T')[0]}" 
+                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Tipe Data</label>
+                        <select id="export-type" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                            <option value="kunjungan">Kunjungan</option>
+                            <option value="barang-titipan">Barang Titipan</option>
+                            <option value="santri">Data Santri</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="items-center px-4 py-3 mt-6">
+                    <button onclick="executeExport('${format}')" 
+                            class="px-4 py-2 bg-blue-600 text-white text-base font-medium rounded-md w-full shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-300">
+                        Export ${format.toUpperCase()}
+                    </button>
+                    <button onclick="closeExportModal()" 
+                            class="mt-3 px-4 py-2 bg-gray-300 text-gray-800 text-base font-medium rounded-md w-full shadow-sm hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-300">
+                        Batal
+                    </button>
+                </div>
             </div>
-        `;
+        </div>
+    `;
+
+            document.body.appendChild(modal);
+
+            // Close modal when clicking outside
+            modal.addEventListener('click', function(e) {
+                if (e.target === modal) {
+                    closeExportModal();
+                }
+            });
+        }
+
+        function executeExport(format) {
+            const startDate = document.getElementById('export-start-date').value;
+            const endDate = document.getElementById('export-end-date').value;
+            const type = document.getElementById('export-type').value;
+
+            if (!startDate || !endDate) {
+                showNotification('Mohon pilih tanggal mulai dan selesai', 'error');
+                return;
+            }
+
+            if (new Date(startDate) > new Date(endDate)) {
+                showNotification('Tanggal mulai tidak boleh lebih besar dari tanggal selesai', 'error');
+                return;
+            }
+
+            // Close modal
+            closeExportModal();
+
+            // Create export form
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = '/laporan/export';
+            form.style.display = 'none';
+            form.target = '_blank';
+
+            const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+            const csrfInput = document.createElement('input');
+            csrfInput.type = 'hidden';
+            csrfInput.name = '_token';
+            csrfInput.value = csrfToken;
+            form.appendChild(csrfInput);
+
+            const params = {
+                type: type,
+                format: format,
+                tanggal_mulai: startDate,
+                tanggal_selesai: endDate
+            };
+
+            for (const [key, value] of Object.entries(params)) {
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = key;
+                input.value = value;
+                form.appendChild(input);
+            }
+
+            document.body.appendChild(form);
+            form.submit();
+
+            setTimeout(() => {
+                document.body.removeChild(form);
+                showNotification(`Export ${format.toUpperCase()} berhasil!`, 'success');
+            }, 1000);
+        }
+
+        function closeExportModal() {
+            const modal = document.getElementById('export-modal');
+            if (modal) {
+                modal.remove();
+            }
+        }
+
+        // Enhanced notification function
+        function showNotification(message, type = 'info') {
+            // Remove existing notifications
+            const existingNotifications = document.querySelectorAll('.notification');
+            existingNotifications.forEach(notification => notification.remove());
+
+            const notification = document.createElement('div');
+            notification.className = `notification fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg max-w-sm transition-all duration-300 transform ${
+        type === 'success' ? 'bg-green-500 text-white' :
+        type === 'error' ? 'bg-red-500 text-white' :
+        type === 'warning' ? 'bg-yellow-500 text-white' :
+        'bg-blue-500 text-white'
+    }`;
+
+            notification.innerHTML = `
+        <div class="flex items-center">
+            <i class="fas fa-${
+                type === 'success' ? 'check-circle' : 
+                type === 'error' ? 'exclamation-circle' : 
+                type === 'warning' ? 'exclamation-triangle' :
+                'info-circle'
+            } mr-2"></i>
+            <span>${message}</span>
+            <button onclick="this.parentElement.parentElement.remove()" class="ml-2 text-white hover:text-gray-200">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+    `;
 
             document.body.appendChild(notification);
 
+            // Auto remove after 5 seconds
             setTimeout(() => {
-                notification.remove();
+                if (notification.parentElement) {
+                    notification.style.transform = 'translateX(100%)';
+                    setTimeout(() => {
+                        if (notification.parentElement) {
+                            notification.remove();
+                        }
+                    }, 300);
+                }
             }, 5000);
+        }
+
+        // Quick export functions for specific data types
+        function exportKunjungan(format) {
+            exportData(format, 'kunjungan');
+        }
+
+        function exportBarangTitipan(format) {
+            exportData(format, 'barang-titipan');
+        }
+
+        function exportSantri(format) {
+            exportData(format, 'santri');
+        }
+
+        // Initialize export functionality on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            // Add click handlers for export buttons that might be dynamically added
+            document.addEventListener('click', function(e) {
+                if (e.target.matches('[onclick*="exportData"]')) {
+                    e.preventDefault();
+                    const onclickAttr = e.target.getAttribute('onclick');
+                    const matches = onclickAttr.match(/exportData\('(\w+)'(?:,\s*'(\w+)')?\)/);
+                    if (matches) {
+                        const format = matches[1];
+                        const type = matches[2] || 'kunjungan';
+                        exportData(format, type);
+                    }
+                }
+            });
+        });
+
+        // Keyboard shortcuts for export
+        document.addEventListener('keydown', function(e) {
+            if (e.ctrlKey && e.shiftKey) {
+                switch (e.key) {
+                    case 'E':
+                        e.preventDefault();
+                        exportWithDateRange('excel');
+                        break;
+                    case 'P':
+                        e.preventDefault();
+                        exportWithDateRange('pdf');
+                        break;
+                    case 'C':
+                        e.preventDefault();
+                        exportWithDateRange('csv');
+                        break;
+                }
+            }
+        });
+
+        // Global error handler for export failures
+        window.addEventListener('error', function(e) {
+            if (e.message.includes('export')) {
+                showNotification('Terjadi kesalahan saat export. Silakan coba lagi.', 'error');
+            }
+        });
+
+        // Check if export was successful (for form submissions)
+        function checkExportStatus() {
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.has('exported') && urlParams.get('exported') === 'success') {
+                showNotification('Export berhasil!', 'success');
+                // Remove the parameter from URL without refreshing
+                const newUrl = window.location.pathname + (window.location.search.replace(/[?&]exported=success/, ''));
+                window.history.replaceState({}, document.title, newUrl);
+            }
         }
     </script>
 @endpush
