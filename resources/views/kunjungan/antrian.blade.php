@@ -92,9 +92,6 @@
                             class="border border-yellow-200 rounded-lg p-4 bg-yellow-50 hover:bg-yellow-100 transition-colors">
                             <div class="flex items-center justify-between mb-3">
                                 <div class="flex items-center space-x-3">
-                                    <div class="w-10 h-10 bg-yellow-200 rounded-full flex items-center justify-center">
-                                        <span class="font-bold text-yellow-800">{{ $kunjungan->nomor_antrian }}</span>
-                                    </div>
                                     <div>
                                         <h4 class="font-semibold text-gray-900">{{ $kunjungan->nama_pengunjung }}</h4>
                                         <p class="text-sm text-gray-600">{{ $kunjungan->santri->nama }}</p>
@@ -142,9 +139,6 @@
                         <div class="border border-blue-200 rounded-lg p-4 bg-blue-50 hover:bg-blue-100 transition-colors">
                             <div class="flex items-center justify-between mb-3">
                                 <div class="flex items-center space-x-3">
-                                    <div class="w-10 h-10 bg-blue-200 rounded-full flex items-center justify-center">
-                                        <span class="font-bold text-blue-800">{{ $kunjungan->nomor_antrian }}</span>
-                                    </div>
                                     <div>
                                         <h4 class="font-semibold text-gray-900">{{ $kunjungan->nama_pengunjung }}</h4>
                                         <p class="text-sm text-gray-600">{{ $kunjungan->santri->nama }}</p>
@@ -194,9 +188,6 @@
                             class="border border-green-200 rounded-lg p-4 bg-green-50 hover:bg-green-100 transition-colors">
                             <div class="flex items-center justify-between mb-3">
                                 <div class="flex items-center space-x-3">
-                                    <div class="w-10 h-10 bg-green-200 rounded-full flex items-center justify-center">
-                                        <span class="font-bold text-green-800">{{ $kunjungan->nomor_antrian }}</span>
-                                    </div>
                                     <div>
                                         <h4 class="font-semibold text-gray-900">{{ $kunjungan->nama_pengunjung }}</h4>
                                         <p class="text-sm text-gray-600">{{ $kunjungan->santri->nama }}</p>

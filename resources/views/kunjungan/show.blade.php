@@ -396,11 +396,6 @@
                                 <i class="fas fa-times mr-2"></i>Batalkan
                             </button>
                         @endif
-
-                        <a href="{{ route('kunjungan.edit', $kunjungan) }}"
-                            class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg transition-colors">
-                            <i class="fas fa-edit mr-2"></i>Edit
-                        </a>
                     </div>
                 </div>
             </div>
