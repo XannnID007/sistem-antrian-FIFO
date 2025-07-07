@@ -186,14 +186,6 @@
                             </a>
                         </div>
                     </div>
-
-                    <!-- Laporan Lanjutan (Only for Pengasuh) -->
-                    <a href="{{ route('laporan.advanced.index') }}"
-                        class="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-100 transition-colors 
-                              {{ request()->routeIs('laporan.advanced.*') ? 'active-menu' : 'text-gray-700' }}">
-                        <i class="fas fa-chart-line w-5"></i>
-                        <span>Laporan Lanjutan</span>
-                    </a>
                 @endif
             </nav>
         </div>

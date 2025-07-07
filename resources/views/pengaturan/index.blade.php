@@ -91,52 +91,6 @@
                 </button>
             </div>
         @endif
-
-        <!-- Common Settings Quick Setup -->
-        <div class="bg-blue-50 border border-blue-200 rounded-lg p-6">
-            <h3 class="text-lg font-semibold text-blue-900 mb-4">
-                <i class="fas fa-magic mr-2"></i>Pengaturan Umum yang Disarankan
-            </h3>
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                <button
-                    onclick="addQuickSetting('pesantren_nama', 'Pondok Pesantren Salafiyah Al-Jawahir', 'Nama lengkap pesantren')"
-                    class="text-left p-3 bg-white rounded border hover:border-blue-300 transition-colors">
-                    <div class="font-medium text-gray-900">Nama Pesantren</div>
-                    <div class="text-sm text-gray-500">Nama lengkap pesantren</div>
-                </button>
-
-                <button onclick="addQuickSetting('pesantren_alamat', '', 'Alamat lengkap pesantren')"
-                    class="text-left p-3 bg-white rounded border hover:border-blue-300 transition-colors">
-                    <div class="font-medium text-gray-900">Alamat Pesantren</div>
-                    <div class="text-sm text-gray-500">Alamat lengkap pesantren</div>
-                </button>
-
-                <button onclick="addQuickSetting('pesantren_telepon', '', 'Nomor telepon pesantren')"
-                    class="text-left p-3 bg-white rounded border hover:border-blue-300 transition-colors">
-                    <div class="font-medium text-gray-900">Telepon Pesantren</div>
-                    <div class="text-sm text-gray-500">Nomor telepon pesantren</div>
-                </button>
-
-                <button onclick="addQuickSetting('sistem_max_antrian', '50', 'Maksimal antrian per hari')"
-                    class="text-left p-3 bg-white rounded border hover:border-blue-300 transition-colors">
-                    <div class="font-medium text-gray-900">Max Antrian</div>
-                    <div class="text-sm text-gray-500">Maksimal antrian per hari</div>
-                </button>
-
-                <button onclick="addQuickSetting('sistem_durasi_kunjungan', '15', 'Estimasi durasi kunjungan (menit)')"
-                    class="text-left p-3 bg-white rounded border hover:border-blue-300 transition-colors">
-                    <div class="font-medium text-gray-900">Durasi Kunjungan</div>
-                    <div class="text-sm text-gray-500">Estimasi durasi (menit)</div>
-                </button>
-
-                <button
-                    onclick="addQuickSetting('display_refresh_interval', '10', 'Interval refresh display publik (detik)')"
-                    class="text-left p-3 bg-white rounded border hover:border-blue-300 transition-colors">
-                    <div class="font-medium text-gray-900">Refresh Display</div>
-                    <div class="text-sm text-gray-500">Interval refresh (detik)</div>
-                </button>
-            </div>
-        </div>
     </div>
 
     <!-- Add/Edit Modal -->

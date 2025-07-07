@@ -229,65 +229,6 @@
                 </div>
             @endif
         </div>
-
-        <!-- Info Cards -->
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <!-- Role Information -->
-            <div class="bg-white rounded-lg shadow card-shadow">
-                <div class="px-6 py-4 border-b border-gray-200">
-                    <h3 class="text-lg font-semibold text-gray-900">Informasi Role</h3>
-                </div>
-                <div class="p-6 space-y-4">
-                    <div class="border rounded-lg p-4">
-                        <h4 class="font-medium text-purple-900 mb-2">
-                            <i class="fas fa-user-tie text-purple-600 mr-2"></i>Pengasuh
-                        </h4>
-                        <p class="text-sm text-gray-600">
-                            Memiliki akses penuh ke sistem termasuk kelola data master (santri, user), pengaturan sistem,
-                            dan laporan lanjutan.
-                        </p>
-                    </div>
-                    <div class="border rounded-lg p-4">
-                        <h4 class="font-medium text-green-900 mb-2">
-                            <i class="fas fa-user-cog text-green-600 mr-2"></i>Admin
-                        </h4>
-                        <p class="text-sm text-gray-600">
-                            Dapat mengelola kunjungan santri, barang titipan, dan mengakses laporan dasar sistem.
-                        </p>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Security Notes -->
-            <div class="bg-white rounded-lg shadow card-shadow">
-                <div class="px-6 py-4 border-b border-gray-200">
-                    <h3 class="text-lg font-semibold text-gray-900">Catatan Keamanan</h3>
-                </div>
-                <div class="p-6 space-y-3">
-                    <div class="flex items-start space-x-3">
-                        <i class="fas fa-shield-alt text-blue-500 mt-1"></i>
-                        <div>
-                            <p class="text-sm font-medium text-gray-900">Password Default</p>
-                            <p class="text-sm text-gray-600">User baru akan mendapat password default "password123"</p>
-                        </div>
-                    </div>
-                    <div class="flex items-start space-x-3">
-                        <i class="fas fa-exclamation-triangle text-yellow-500 mt-1"></i>
-                        <div>
-                            <p class="text-sm font-medium text-gray-900">Minimal Pengasuh</p>
-                            <p class="text-sm text-gray-600">Sistem memerlukan minimal 1 pengasuh aktif</p>
-                        </div>
-                    </div>
-                    <div class="flex items-start space-x-3">
-                        <i class="fas fa-user-lock text-red-500 mt-1"></i>
-                        <div>
-                            <p class="text-sm font-medium text-gray-900">Akun Sendiri</p>
-                            <p class="text-sm text-gray-600">Anda tidak dapat menghapus atau menonaktifkan akun sendiri</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
     </div>
 
     <!-- Modal Konfirmasi Reset Password -->

@@ -121,34 +121,6 @@
                         </div>
                     </div>
                 </div>
-
-                <!-- Activity Statistics -->
-                @if ($user->role === 'admin')
-                    <div class="bg-white rounded-lg shadow card-shadow">
-                        <div class="px-6 py-4 border-b border-gray-200">
-                            <h3 class="text-lg font-semibold text-gray-900">Statistik Aktivitas</h3>
-                        </div>
-                        <div class="p-6">
-                            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                <div class="text-center">
-                                    <div class="text-2xl font-bold text-blue-600">{{ $user->kunjunganAdmin->count() }}
-                                    </div>
-                                    <div class="text-sm text-gray-500">Kunjungan Diproses</div>
-                                </div>
-                                <div class="text-center">
-                                    <div class="text-2xl font-bold text-green-600">
-                                        {{ $user->barangTitipanPenerima->count() }}</div>
-                                    <div class="text-sm text-gray-500">Barang Diterima</div>
-                                </div>
-                                <div class="text-center">
-                                    <div class="text-2xl font-bold text-purple-600">
-                                        {{ $user->barangTitipanPenyerah->count() }}</div>
-                                    <div class="text-sm text-gray-500">Barang Diserahkan</div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                @endif
             </div>
 
             <!-- Sidebar -->
@@ -172,70 +144,6 @@
                                 {{ $user->is_active ? 'Aktif' : 'Tidak Aktif' }}
                             </span>
                         </div>
-                    </div>
-                </div>
-
-                <!-- Role Permissions -->
-                <div class="bg-white rounded-lg shadow card-shadow">
-                    <div class="px-6 py-4 border-b border-gray-200">
-                        <h3 class="text-lg font-semibold text-gray-900">Akses & Permissions</h3>
-                    </div>
-                    <div class="p-6 space-y-3">
-                        @if ($user->role === 'pengasuh')
-                            <div class="flex items-center text-sm text-green-600">
-                                <i class="fas fa-check-circle mr-2"></i>
-                                Data Santri
-                            </div>
-                            <div class="flex items-center text-sm text-green-600">
-                                <i class="fas fa-check-circle mr-2"></i>
-                                Kelola User
-                            </div>
-                            <div class="flex items-center text-sm text-green-600">
-                                <i class="fas fa-check-circle mr-2"></i>
-                                Pengaturan Sistem
-                            </div>
-                            <div class="flex items-center text-sm text-green-600">
-                                <i class="fas fa-check-circle mr-2"></i>
-                                Laporan Lanjutan
-                            </div>
-                        @else
-                            <div class="flex items-center text-sm text-blue-600">
-                                <i class="fas fa-check-circle mr-2"></i>
-                                Kunjungan
-                            </div>
-                            <div class="flex items-center text-sm text-blue-600">
-                                <i class="fas fa-check-circle mr-2"></i>
-                                Barang Titipan
-                            </div>
-                            <div class="flex items-center text-sm text-blue-600">
-                                <i class="fas fa-check-circle mr-2"></i>
-                                Laporan
-                            </div>
-                        @endif
-                    </div>
-                </div>
-
-                <!-- Quick Actions -->
-                <div class="bg-white rounded-lg shadow card-shadow">
-                    <div class="px-6 py-4 border-b border-gray-200">
-                        <h3 class="text-lg font-semibold text-gray-900">Aksi Cepat</h3>
-                    </div>
-                    <div class="p-6 space-y-3">
-                        <button onclick="toggleStatus({{ $user->id }})"
-                            class="block w-full {{ $user->is_active ? 'bg-red-600 hover:bg-red-700' : 'bg-green-600 hover:bg-green-700' }} text-white text-center py-2 px-4 rounded-lg transition-colors">
-                            <i class="fas {{ $user->is_active ? 'fa-times' : 'fa-check' }} mr-2"></i>
-                            {{ $user->is_active ? 'Nonaktifkan' : 'Aktifkan' }}
-                        </button>
-                        <button onclick="resetPassword({{ $user->id }})"
-                            class="block w-full bg-orange-600 hover:bg-orange-700 text-white text-center py-2 px-4 rounded-lg transition-colors">
-                            <i class="fas fa-key mr-2"></i>Reset Password
-                        </button>
-                        @if ($user->id !== auth()->id())
-                            <button onclick="deleteUser({{ $user->id }})"
-                                class="block w-full bg-red-600 hover:bg-red-700 text-white text-center py-2 px-4 rounded-lg transition-colors">
-                                <i class="fas fa-trash mr-2"></i>Hapus User
-                            </button>
-                        @endif
                     </div>
                 </div>
             </div>

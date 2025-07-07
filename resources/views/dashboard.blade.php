@@ -91,64 +91,6 @@
             </div>
         </div>
 
-        <!-- Additional Stats Row -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <!-- Monthly Stats -->
-            <div class="bg-white rounded-lg shadow card-shadow p-6">
-                <h3 class="text-lg font-semibold text-gray-900 mb-4">Statistik Bulan Ini</h3>
-                <div class="space-y-3">
-                    <div class="flex justify-between items-center">
-                        <span class="text-gray-600">Total Kunjungan</span>
-                        <span class="font-semibold text-gray-900">{{ $stats['total_kunjungan_bulan_ini'] }}</span>
-                    </div>
-                    <div class="flex justify-between items-center">
-                        <span class="text-gray-600">Barang Titipan</span>
-                        <span class="font-semibold text-gray-900">{{ $stats['total_barang_titipan'] }}</span>
-                    </div>
-                    <div class="flex justify-between items-center">
-                        <span class="text-gray-600">Rata-rata Tunggu</span>
-                        <span class="font-semibold text-gray-900">
-                            {{ $avgWaitingTime ? number_format($avgWaitingTime, 0) . ' menit' : 'N/A' }}
-                        </span>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Peak Hours -->
-            <div class="bg-white rounded-lg shadow card-shadow p-6">
-                <h3 class="text-lg font-semibold text-gray-900 mb-4">Jam Sibuk Hari Ini</h3>
-                <div class="space-y-3">
-                    @forelse($peakHours as $hour)
-                        <div class="flex justify-between items-center">
-                            <span class="text-gray-600">{{ sprintf('%02d:00', $hour->hour) }}</span>
-                            <span class="font-semibold text-gray-900">{{ $hour->count }} kunjungan</span>
-                        </div>
-                    @empty
-                        <p class="text-gray-500 text-sm">Belum ada data untuk hari ini</p>
-                    @endforelse
-                </div>
-            </div>
-
-            <!-- Quick Actions -->
-            <div class="bg-white rounded-lg shadow card-shadow p-6">
-                <h3 class="text-lg font-semibold text-gray-900 mb-4">Aksi Cepat</h3>
-                <div class="space-y-3">
-                    <a href="{{ route('kunjungan.create') }}"
-                        class="block w-full bg-blue-600 hover:bg-blue-700 text-white text-center py-2 px-4 rounded-lg transition-colors">
-                        <i class="fas fa-plus mr-2"></i>Daftar Kunjungan Baru
-                    </a>
-                    <a href="{{ route('kunjungan.antrian') }}"
-                        class="block w-full bg-green-600 hover:bg-green-700 text-white text-center py-2 px-4 rounded-lg transition-colors">
-                        <i class="fas fa-list mr-2"></i>Kelola Antrian
-                    </a>
-                    <a href="{{ route('laporan.index') }}"
-                        class="block w-full bg-purple-600 hover:bg-purple-700 text-white text-center py-2 px-4 rounded-lg transition-colors">
-                        <i class="fas fa-chart-bar mr-2"></i>Lihat Laporan
-                    </a>
-                </div>
-            </div>
-        </div>
-
         <!-- Charts and Tables Row -->
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <!-- Daily Statistics Chart -->
